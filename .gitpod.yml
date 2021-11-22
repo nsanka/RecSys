@@ -1,0 +1,27 @@
+# List the start up tasks. Learn more https://www.gitpod.io/docs/config-start-tasks/
+tasks:
+  - name: Setup
+    init: |
+      python -m pip install --upgrade pip
+      python -m pip install -r requirements.txt
+    command: |
+      clear
+      echo "=============="
+      echo "    Welcome   "
+      echo "=============="
+      pyenv versions
+      echo ""
+
+# List the ports to expose. Learn more https://www.gitpod.io/docs/config-ports/
+ports:
+  # jupyter
+  - port: 8888
+    onOpen: ignore
+  - port: 5000
+    onOpen: ignore
+
+# Install VSCode Extensions
+vscode:
+  extensions:
+    - ms-azuretools.vscode-docker
+    - ms-python.python
