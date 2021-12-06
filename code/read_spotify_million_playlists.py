@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import json
 import pprint
@@ -13,9 +14,10 @@ import fnmatch
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 
+pd.set_option('display.max_rows', None)
 zip_file = 'data/spotify_million_playlist_dataset.zip'
-db_file = 'data/spotify_mpd.db'
-log_file = 'data/read_log.txt'
+db_file = 'data/spotify_million_playlists.db'
+log_file = 'data/read_spotify_mpd_log.txt'
 
 sys.path.insert(1, '/Users/nsanka/Downloads/RecSys')
 import config
@@ -123,7 +125,6 @@ def create_all_tables():
         # create features table
         create_table(conn, sql_create_features_table, 'features')
 
-        return conn
     else:
         print("Error! cannot create the database connection.")
 
@@ -195,7 +196,23 @@ def get_playlist(conn, pid):
         playlist = rows[0]        
     return playlist
 
-def create_audio_features(conn, cnt_uris=100):
+def get_table_df(conn, table_name):
+    write_log('Reading table from database: ' + table_name)
+    table_df = pd.read_sql('select * from ' + table_name, conn)
+    print(table_df.head())
+    return table_df
+
+def get_average_audio_features(conn, pid):
+    track_ids_df = pd.read_sql('select track_id from ratings where pid=' + str(pid), conn)
+    features_df = get_table_df(conn, 'features')
+    features_df = features_df.merge(track_ids_df, on='track_id')
+    print('Playlist ', pid, 'has', len(features_df), 'tracks')
+    average_df = features_df.drop(columns='track_id').mean()
+    print(average_df)
+    return average_df
+
+def create_audio_features(cnt_uris=100):
+    conn = create_connection(db_file)
     sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials())
     max_track_id = get_max_track_id(conn, 'tracks')
     min_track_id = get_max_track_id(conn, 'features')
@@ -203,13 +220,12 @@ def create_audio_features(conn, cnt_uris=100):
     print('features min track_id:', min_track_id, 'tracks max track_id', max_track_id)
     for idx in range(min_track_id, max_track_id, cnt_uris):
         #print('getting audio features for track_id ', idx+1, ' to ', idx+cnt_uris)
-        write_log('getting audio features for track_id ' + str(idx+1) + ' to ' + str(idx+cnt_uris))
+        write_log('Getting audio features for track_ids: ' + str(idx+1) + '-' + str(idx+cnt_uris))
         cur = conn.cursor()
         cur.execute('''select track_id, track_uri from tracks where (track_id > ?) and (track_id <= ?)''', (idx, idx+cnt_uris))
         rows = cur.fetchall()
         uris = [row[1] for row in rows]
-        for attempt in range(10):
-            print('Attempt: ', attempt)
+        for _ in range(10):
             try:
                 feats_list = sp.audio_features(uris)
             except Exception as e: 
@@ -218,158 +234,145 @@ def create_audio_features(conn, cnt_uris=100):
                 break
         else:
             print('All 10 attempts failed, try after sometime')
+            write_log('All 10 attempts failed, try after sometime')
             break
 
         track_id_list = range(idx+1, idx+cnt_uris+1)
         # Remove rows where the features are None
         track_id_list = [track_id_list[feats_list.index(item)] for item in feats_list if item]
-        write_log('got features for track_ids: ' + str(track_id_list[0]) + '-' + str(track_id_list[-1]))
         print('got features for track_ids: ', track_id_list[0], '-', track_id_list[-1])
         feats_list = [item for item in feats_list if item]
         feats_df = pd.DataFrame(feats_list)
         columns = ['danceability','energy','key','loudness','mode','speechiness','acousticness','instrumentalness','liveness','valence','tempo','duration_ms','time_signature']
         feats_df = feats_df[columns]
         feats_df.insert(loc=0, column='track_id', value=track_id_list)
+        write_log('Adding audio features for track_ids: ' + str(track_id_list[0]) + '-' + str(track_id_list[-1]))
         #print(feats_df.head())
         feats_df.to_sql(name='features', con=conn, if_exists='append', index=False)
-
-def process_json_data_loop(filename, num_playlists):
-    conn = create_all_tables()
-    print('File: ' + filename)
-    write_log('File: ' + filename)
-
-    # Get Max track_id in tracks table
-    max_track_id = get_max_track_id(conn, 'tracks')
-
-    playlists = []
-    ratings = []
-    tracks = []
-    cnt = 0
-    with ZipFile(zip_file) as zipfiles:
-        with zipfiles.open(filename) as json_file:
-            json_data = json.loads(json_file.read())
-            for playlist in json_data['playlists']:
-                pl = get_playlist(conn, playlist['pid'])
-                if pl != None:
-                    write_log('Playlist already exists in database: ' + str(playlist['pid']))
-                    print('Playlist already exists in database: ' + str(playlist['pid']))
-                    # Playlist already exists in table
-                    continue
-                else:
-                    write_log('Processing Playlist pid: ' + str(playlist['pid']))
-                    print('Processing Playlist pid: ' + str(playlist['pid']))
-                cnt += 1
-                new_playlist = [playlist['pid'], playlist['name'], playlist['num_albums'], playlist['num_artists'], playlist['num_edits'], 
-                                playlist['num_tracks'], playlist['collaborative'], playlist['duration_ms'], playlist['modified_at']]
-                playlists.append(new_playlist)
-
-                for track in playlist['tracks']:
-                    track_uri = track['track_uri'].split(':')[2]
-                    write_log('Processing Track: ' + track_uri)
-                    # Check if track_uri exists in the tracks list
-                    track_id = next((t[0] for t in tracks if track_uri in t), None)
-                    if not track_id:
-                        write_log('Track not found in tracks list: ' + track_uri)
-                        # Check track_uri exists in the database
-                        track_id = select_track_by_trackuri(conn, track_uri)
-                        if track_id == 0:
-                            write_log('Track not found in database: ' + track_uri)
-                            album_uri = track['album_uri'].split(':')[2]
-                            artist_uri = track['artist_uri'].split(':')[2]
-                            # (max_track_id + 1) tracks already exist in database
-                            track_id = len(tracks) + (max_track_id + 1)
-                            new_track = [track_id, track['track_name'], track_uri, track['album_name'], album_uri, track['artist_name'], artist_uri]
-                            write_log('Adding Track to database: ' + str(track_id))
-                            tracks.append(new_track)
-                    
-                    new_rating = [playlist['pid'], track_id, track['pos'], playlist['num_followers']]
-                    write_log('Adding Rating for pid:' + str(playlist['pid']) + ' track_id: ' + str(track_id))
-                    ratings.append(new_rating)
-
-                if (cnt == num_playlists) and (num_playlists > 0):
-                    break
-
-            playlist_cols = ['pid','name','num_albums','num_artists','num_edits','num_tracks','collaborative','duration_ms','modified_at']
-            playlists_df = pd.DataFrame(playlists, columns=playlist_cols)
-            #print(playlists_df.head())
-            write_log('Adding all playlists to database from file: ' + filename)
-            playlists_df.to_sql(name='playlists', con=conn, if_exists='append', index=False)
-
-            rating_cols = ['pid', 'track_id', 'pos', 'num_followers']
-            ratings_df = pd.DataFrame(ratings, columns=rating_cols)
-            #print(ratings_df.head())
-            write_log('Adding all ratings to database from file: ' + filename)
-            ratings_df.to_sql(name='ratings', con=conn, if_exists='append', index=False)
-
-            track_cols = ['track_id', 'track_name', 'track_uri', 'album_name', 'album_uri', 'artist_name', 'artist_uri']
-            tracks_df = pd.DataFrame(tracks, columns=track_cols)
-            #print(tracks_df.tail())
-            write_log('Adding all tracks to database from file: ' + filename)
-            tracks_df.to_sql(name='tracks', con=conn, if_exists='append', index=False)
-
-            # get audio features for all tracks
-            create_audio_features(conn)
-
     if conn:
         conn.close()
 
-def process_json_data(filename, num_playlists):
-    conn = create_all_tables()
-    print('File: ' + filename)
-    write_log('File: ' + filename)
+def normalize_name(name):
+    name = name.lower()
+    name = re.sub(r"[.,\/#!$%\^\*;:{}=\_`~()@]", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name
+
+def to_date(epoch):
+    return datetime.fromtimestamp(epoch).strftime("%Y-%m-%d")
+
+def print_most_common(txt, df, col, num, is_date=False):
+    print()
+    print(txt)
+    print("%s %s" % ('  count', col))
+    for name, count in df[col].value_counts()[:num].items():
+        if is_date:
+            print("%7d %s" % (count, to_date(name)))
+        else:
+            print("%7d %s" % (count, name))
+
+def show_summary():
+    write_log('Printing Summary Statistics')
+    playlists_df, tracks_df, features_df = read_all_tables()
+    total_playlists = len(playlists_df)
+    #total_tracks = len(tracks_df)
+    total_tracks = playlists_df['num_tracks'].sum()
+    #total_descriptions = len(playlists_df[playlists_df['description'].notna()])
+
+    titles = set(playlists_df["name"].tolist())
+    playlists_df["nname"] = playlists_df["name"].map(normalize_name)
+    ntitles = set(playlists_df["nname"].tolist())
+
+    albums = set(tracks_df["album_uri"].tolist())
+    tracks = set(tracks_df["track_uri"].tolist())
+    artists = set(tracks_df["artist_uri"].tolist())
+
+    print()
+    print("number of playlists", total_playlists)
+    print("number of tracks", total_tracks)
+    print("number of unique tracks", len(tracks))
+    print("number of unique features", len(features_df))
+    print("number of unique albums", len(albums))
+    print("number of unique artists", len(artists))
+    print("number of unique titles", len(titles))
+    #print("number of playlists with descriptions", total_descriptions)
+    print("number of unique normalized titles", len(ntitles))
+    print("avg playlist length", float(total_tracks) / total_playlists)
+    print_most_common("top playlist titles", playlists_df, "nname", 20)
+    tracks_df['full_name'] = tracks_df["track_name"] + " by " + tracks_df["artist_name"]
+    print_most_common("top tracks", tracks_df, 'full_name', 20)
+    print_most_common("top artists", tracks_df, "artist_name", 20)
+    print_most_common("numedits histogram", playlists_df, "num_edits", 20)
+    print_most_common("last modified histogram", playlists_df, "modified_at", 20, True)
+    print_most_common("playlist length histogram", playlists_df, "num_tracks", 20)
+    print_most_common("num followers histogram", playlists_df, "num_followers", 20)
+
+def process_json_data(json_data, num_playlists):
+    conn = create_connection(db_file)
 
     # Get Max track_id in tracks table
     max_track_id = get_max_track_id(conn, 'tracks')
     existing_pids = get_all_playlist_ids(conn)
+    
+    # Get all playlists in the file
+    playlists_df = pd.json_normalize(json_data['playlists'])
+    playlists_df.drop(['tracks', 'description'], axis=1, inplace=True)
+    print(playlists_df.head())
+    # Remove playlists if they are in database
+    playlists_df = playlists_df[~playlists_df['pid'].isin(existing_pids)]
+    # Get only num_playlists if requested
+    if num_playlists > 0:
+        playlists_df = playlists_df.iloc[:num_playlists]
+    if len(playlists_df) == 0:
+        print('All playlists from this file are in database')
+        return
+    #print(playlists_df.head(10))
+    print('Adding playlists to database:', playlists_df['pid'].min(), playlists_df['pid'].max())
+    write_log('Adding all playlists to database from file: ')
+    write_log('Adding playlists: ' + str(playlists_df['pid'].min()) + '-' + str(playlists_df['pid'].max()))
+    playlists_df.to_sql(name='playlists', con=conn, if_exists='append', index=False)
 
-    with ZipFile(zip_file) as zipfiles:
-        with zipfiles.open(filename) as json_file:
-            json_data = json.loads(json_file.read())
+    # Get all the tracks in the file
+    tracks_df = pd.json_normalize(json_data['playlists'], record_path=['tracks'], meta=['pid', 'num_followers'])
+    print(tracks_df.head())
+    tracks_df = tracks_df[tracks_df['pid'].isin(playlists_df['pid'].values)]
+    tracks_df['track_uri'] = tracks_df['track_uri'].apply(lambda uri: uri.split(':')[2])
+    tracks_df['album_uri'] = tracks_df['album_uri'].apply(lambda uri: uri.split(':')[2])
+    tracks_df['artist_uri'] = tracks_df['artist_uri'].apply(lambda uri: uri.split(':')[2])
+    print('Total tracks/ratings in this file: ', len(tracks_df))
+    write_log('Total tracks/ratings in this file: ' + str(len(tracks_df)))
 
-            playlists_df = pd.json_normalize(json_data['playlists'])
-            # Remove playlists if they are in database
-            playlists_df = playlists_df[~playlists_df['pid'].isin(existing_pids)]
-            # Get only num_playlists if requested
-            if num_playlists > 0:
-                playlists_df = playlists_df.iloc[:num_playlists]
-            if len(playlists_df) == 0:
-                print('Added all playlists from this file')
-                return
-            playlists_df.drop(['tracks', 'description'], axis=1, inplace=True)
-            #print(playlists_df.head())
-            print('Processing playlists:', playlists_df['pid'].min(), playlists_df['pid'].max())
-            write_log('Adding all playlists to database from file: ' + filename)
-            playlists_df.to_sql(name='playlists', con=conn, if_exists='append', index=False)
+    print('Get track_id for existing tracks from database, create one for new tracks')
+    write_log('Get track_id for existing tracks from database, create one for new tracks')
+    all_tracks_df = pd.read_sql('select track_id, track_uri from tracks', conn)
+    tracks_df = tracks_df.merge(all_tracks_df, how='left', on='track_uri').fillna(0)
+    #print('Total tracks after merge: ', len(tracks_df))
+    #print(tracks_df.head(100))
+    print('Tracks already exist', len(tracks_df[tracks_df['track_id'] != 0]['track_uri'].unique()))
+    write_log('Tracks already exist: ' + str(len(tracks_df[tracks_df['track_id'] != 0]['track_uri'].unique())))
+    tracks_df['track_id1'] = tracks_df[tracks_df["track_id"] == 0][['track_uri']].groupby('track_uri').ngroup()+max_track_id+1
+    tracks_df['track_id'] = tracks_df['track_id'] + tracks_df['track_id1'].fillna(0)
+    tracks_df['track_id'] = tracks_df['track_id'].astype('int64')
+    #print('Total tracks with new track_id: ', len(tracks_df))
+    print('Created new track_ids', len(tracks_df[tracks_df['track_id1'].notna()]['track_uri'].unique()))
+    write_log('Created new track_ids: ' + str(len(tracks_df[tracks_df['track_id1'].notna()]['track_uri'].unique())))
 
-            tracks_df = pd.json_normalize(json_data['playlists'], record_path=['tracks'], meta=['pid', 'num_followers'])
-            if num_playlists > 0:
-                tracks_df = tracks_df[tracks_df['pid'].isin(playlists_df['pid'].values)]
-            tracks_df['track_uri'] = tracks_df['track_uri'].apply(lambda uri: uri.split(':')[2])
-            tracks_df['album_uri'] = tracks_df['album_uri'].apply(lambda uri: uri.split(':')[2])
-            tracks_df['artist_uri'] = tracks_df['artist_uri'].apply(lambda uri: uri.split(':')[2])
-            print('Get track_id for existing tracks from database')
-            #all_tracks_df = pd.read_sql('select track_id, track_uri from tracks', conn)
-            #print(len(all_tracks_df))
-            #print(all_tracks_df.tail())
-            tracks_df['track_id'] = tracks_df['track_uri'].apply(lambda uri: select_track_by_trackuri(conn, uri))
-            tracks_df['track_id1'] = tracks_df[tracks_df["track_id"]==0].groupby('track_id').cumcount()+max_track_id+1
-            tracks_df['track_id'] = tracks_df['track_id'] + tracks_df['track_id1'].fillna(0)
-            tracks_df['track_id'] = tracks_df['track_id'].astype('int64')
+    # Save ratings to the database
+    ratings_df = tracks_df[['pid', 'track_id', 'pos', 'num_followers']]
+    #print(ratings_df.head())
+    print('Adding all ratings to database from file: ' + ' ' + str(len(ratings_df)))
+    write_log('Adding all ratings to database from file: ' + ' ' + str(len(ratings_df)))
+    ratings_df.to_sql(name='ratings', con=conn, if_exists='append', index=False)
 
-            ratings_df = tracks_df[['pid', 'track_id', 'pos', 'num_followers']]
-            #print(ratings_df.head())
-            write_log('Adding all ratings to database from file: ' + filename)
-            ratings_df.to_sql(name='ratings', con=conn, if_exists='append', index=False)
-
-            tracks_df = tracks_df[tracks_df['track_id1'].notna()]
-            tracks_df.drop(['pos', 'duration_ms', 'pid', 'num_followers', 'track_id1'], axis=1, inplace=True)
-            print('Processing tracks:', max_track_id, tracks_df['track_id'].max())
-            #print(tracks_df.tail())
-            write_log('Adding all tracks to database from file: ' + filename)
-            tracks_df.to_sql(name='tracks', con=conn, if_exists='append', index=False)
-
-            # get audio features for all tracks
-            create_audio_features(conn)
+    # Save unique tracks to the database
+    tracks_df = tracks_df[tracks_df['track_id1'].notna()]
+    tracks_df.drop(['pos', 'duration_ms', 'pid', 'num_followers', 'track_id1'], axis=1, inplace=True)
+    tracks_df = tracks_df.drop_duplicates(subset='track_uri', keep="first")
+    print('Total unique tracks: ', len(tracks_df))
+    print('Adding tracks to database:', max_track_id+1, tracks_df['track_id'].max())
+    write_log('Adding tracks to database: ' + str(max_track_id+1) + '-' + str(tracks_df['track_id'].max()))
+    #print(tracks_df.tail())
+    tracks_df.to_sql(name='tracks', con=conn, if_exists='append', index=False)
 
     if conn:
         conn.close()
@@ -382,25 +385,56 @@ def extract_mpd_dataset(zip_file, num_files=0, num_playlists=0):
         json_files = fnmatch.filter(file_list, "*.json")
         json_files = [f for i,f in sorted([(int(filename.split('.')[2].split('-')[0]), filename) for filename in json_files])]
 
-    cnt = 0
-    # Init multiprocessing.Pool()
-    print("Number of processors: ", mp.cpu_count())
-    pool = mp.Pool(mp.cpu_count())
+        cnt = 0
+        # Init multiprocessing.Pool()
+        #print("Number of processors: ", mp.cpu_count())
+        #pool = mp.Pool(mp.cpu_count())
 
-    for filename in json_files:
-        cnt += 1
-        process_json_data(filename, num_playlists)
-        pool.apply(process_json_data, args=(filename, num_playlists))
-        if (cnt == num_files) and (num_files > 0):
-            break
-    # Close muliprocessing poolS
-    pool.close()
+        for filename in json_files:
+            cnt += 1
+            print('\nFile: ' + filename)
+            write_log('\nFile: ' + filename)
+
+            with zipfiles.open(filename) as json_file:
+                json_data = json.loads(json_file.read())
+                process_json_data(json_data, num_playlists)
+                #pool.apply(process_json_data, args=(filename, num_playlists))
+
+            if (cnt == num_files) and (num_files > 0):
+                break
+        # Close muliprocessing poolS
+        #pool.close()
+
+def read_all_tables():
+    conn = create_connection(db_file)
+    playlists_df = get_table_df(conn, 'playlists')
+    print(list(playlists_df.columns))
+    tracks_df = get_table_df(conn, 'tracks')
+    print(list(tracks_df.columns))
+    features_df = get_table_df(conn, 'features')
+    print(list(features_df.columns))
+    # Ratings table is too big to read full, it has 343,960,399 rows
+    #ratings_df = get_table_df(conn, 'ratings')
+
+    # Get average features for playlist: pid
+    #average_features_df = get_average_audio_features(conn, 0)
+    return playlists_df, tracks_df, features_df
 
 if __name__ == '__main__':
     start_time = datetime.now()
     write_log("Start Time =" + start_time.strftime("%H:%M:%S"))
+
+    # Create playlists, tracks, ratings, features tables in database
+    create_all_tables()
+    
     # add tracks and playlists for each json file in zipfile
-    extract_mpd_dataset(zip_file, 0, 500)
+    extract_mpd_dataset(zip_file, 2, 2)
+    
+    # get audio features for all tracks
+    create_audio_features()
+
+    # Print the summary statistics
+    show_summary()
     end_time = datetime.now()
     write_log("End Time =" + end_time.strftime("%H:%M:%S"))
-    write_log("Time Take: "+ str(end_time - start_time))
+    write_log("Total Time: " + str(end_time - start_time) + '\n')
