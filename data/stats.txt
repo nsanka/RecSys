@@ -1,0 +1,170 @@
+number of playlists 1000000
+number of tracks 66346428
+number of unique tracks 2262292
+number of unique features 2262190
+number of unique albums 734684
+number of unique artists 295860
+number of unique titles 92944
+number of unique normalized titles 17381
+avg playlist length 66.346428
+
+top playlist titles
+  count nname
+  10000 country
+  10000 chill
+   8493 rap
+   8481 workout
+   8146 oldies
+   8015 christmas
+   6848 rock
+   6157 party
+   5883 throwback
+   5063 jams
+   5052 worship
+   4907 summer
+   4677 feels
+   4612 new
+   4186 disney
+   4124 lit
+   4030 throwbacks
+   3886 music
+   3513 sleep
+   3500 vibes
+
+top tracks
+  count full_name
+     31 Freestyle by Dirty Money Music Group
+     29 Symphony No. 5 in C Minor, Op. 67: I. Allegro con brio by Ludwig van Beethoven
+     26 White Christmas by Bing Crosby
+     26 Silent Night by Franz Xaver Gruber
+     24 Symphony No. 7 in A Major, Op. 92: II. Allegretto by Ludwig van Beethoven
+     20 Ballade No. 1 in G Minor, Op. 23 by Frédéric Chopin
+     20 Rhapsody in Blue by George Gershwin
+     17 Oblivion by Astor Piazzolla
+     17 Ave Maria by Franz Schubert
+     17 O Holy Night by Adolphe Adam
+     17 Ave Maria by Johann Sebastian Bach
+     16 Recuerdos de la Alhambra by Francisco Tárrega
+     16 Run Like An Antelope by Phish
+     16 Piano Concerto No.5 in E flat major Op.73 -"Emperor": 2. Adagio un poco mosso by Ludwig van Beethoven
+     16 Cello Suite No. 1 in G Major, BWV 1007: I. Prelude by Johann Sebastian Bach
+     15 White Christmas by Irving Berlin
+     15 Freestyle by Swishahouse
+     15 Sleigh Ride by Leroy Anderson
+     15 Hark! The Herald Angels Sing by Felix Mendelssohn
+     15 Intro by Insane Clown Posse
+
+top artists
+  count artist_name
+   5417 Johann Sebastian Bach
+   5260 Wolfgang Amadeus Mozart
+   4312 Ludwig van Beethoven
+   3128 Frédéric Chopin
+   2609 Pyotr Ilyich Tchaikovsky
+   2447 Various Artists
+   2340 Vitamin String Quartet
+   2239 Grateful Dead
+   1948 Frank Sinatra
+   1938 Piano Tribute Players
+   1724 Antonio Vivaldi
+   1666 Johannes Brahms
+   1594 Traditional
+   1496 Gucci Mane
+   1482 Claude Debussy
+   1454 George Frideric Handel
+   1386 Johnny Cash
+   1379 Elvis Presley
+   1323 Sergei Rachmaninoff
+   1306 Ella Fitzgerald
+
+numedits histogram
+  count num_edits
+  92252 2
+  81820 3
+  71973 4
+  61978 5
+  53085 6
+  46860 7
+  41210 8
+  36629 9
+  32810 10
+  29907 11
+  26947 12
+  24941 13
+  22800 14
+  20834 15
+  19000 16
+  17817 17
+  16551 18
+  15305 19
+  14217 20
+  13486 21
+
+last modified histogram
+  count modified_at
+  19018 2017-10-30
+  15495 2017-10-29
+  11640 2017-10-26
+  11083 2017-10-28
+   9994 2017-10-27
+   9727 2017-10-25
+   9142 2017-10-24
+   8588 2017-10-23
+   7953 2017-10-22
+   6980 2017-10-19
+   6407 2017-10-21
+   5986 2017-10-18
+   5979 2017-10-20
+   5792 2017-10-17
+   5653 2017-10-16
+   5375 2017-10-15
+   4840 2017-10-12
+   4483 2017-10-14
+   4460 2017-10-11
+   4431 2017-10-13
+
+playlist length histogram
+  count num_tracks
+  15057 20
+  14177 15
+  13876 21
+  13856 16
+  13685 17
+  13629 18
+  13602 22
+  13531 19
+  13250 24
+  13149 23
+  13077 30
+  13043 14
+  13031 25
+  12834 26
+  12513 28
+  12502 27
+  12332 29
+  12318 13
+  12016 12
+  11882 31
+
+num followers histogram
+  count num_followers
+ 754219 1
+ 149600 2
+  46939 3
+  19591 4
+   9813 5
+   5360 6
+   3305 7
+   2143 8
+   1512 9
+   1006 10
+    825 11
+    632 12
+    479 13
+    359 14
+    328 15
+    290 16
+    235 17
+    207 18
+    162 19
+    138 20
