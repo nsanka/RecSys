@@ -19,7 +19,7 @@ zip_file = 'data/spotify_million_playlist_dataset.zip'
 db_file = 'data/spotify_million_playlists.db'
 log_file = 'data/read_spotify_mpd_log.txt'
 
-sys.path.insert(1, '/Users/nsanka/Downloads/RecSys')
+sys.path.insert(1, os.getcwd())
 import config
 # Spotify credentials
 os.environ["SPOTIPY_CLIENT_ID"] = config.SPOTIPY_CLIENT_ID
@@ -317,7 +317,8 @@ def process_json_data(json_data, num_playlists):
     # Get all playlists in the file
     playlists_df = pd.json_normalize(json_data['playlists'])
     playlists_df.drop(['tracks', 'description'], axis=1, inplace=True)
-    print(playlists_df.head())
+    #print(playlists_df.head())
+
     # Remove playlists if they are in database
     playlists_df = playlists_df[~playlists_df['pid'].isin(existing_pids)]
     # Get only num_playlists if requested
@@ -334,7 +335,7 @@ def process_json_data(json_data, num_playlists):
 
     # Get all the tracks in the file
     tracks_df = pd.json_normalize(json_data['playlists'], record_path=['tracks'], meta=['pid', 'num_followers'])
-    print(tracks_df.head())
+    #print(tracks_df.head())
     tracks_df = tracks_df[tracks_df['pid'].isin(playlists_df['pid'].values)]
     tracks_df['track_uri'] = tracks_df['track_uri'].apply(lambda uri: uri.split(':')[2])
     tracks_df['album_uri'] = tracks_df['album_uri'].apply(lambda uri: uri.split(':')[2])
@@ -407,10 +408,13 @@ def extract_mpd_dataset(zip_file, num_files=0, num_playlists=0):
 
 def read_all_tables():
     conn = create_connection(db_file)
+    print()
     playlists_df = get_table_df(conn, 'playlists')
     print(list(playlists_df.columns))
+    print()
     tracks_df = get_table_df(conn, 'tracks')
     print(list(tracks_df.columns))
+    print()
     features_df = get_table_df(conn, 'features')
     print(list(features_df.columns))
     # Ratings table is too big to read full, it has 343,960,399 rows
@@ -428,13 +432,14 @@ if __name__ == '__main__':
     create_all_tables()
     
     # add tracks and playlists for each json file in zipfile
-    extract_mpd_dataset(zip_file, 2, 2)
+    extract_mpd_dataset(zip_file, 0, 0)
     
     # get audio features for all tracks
     create_audio_features()
 
     # Print the summary statistics
     show_summary()
+    
     end_time = datetime.now()
     write_log("End Time =" + end_time.strftime("%H:%M:%S"))
     write_log("Total Time: " + str(end_time - start_time) + '\n')
