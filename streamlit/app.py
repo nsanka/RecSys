@@ -20,7 +20,7 @@ os.environ["SPOTIPY_CLIENT_ID"] = config.SPOTIPY_CLIENT_ID
 os.environ["SPOTIPY_CLIENT_SECRET"] = config.SPOTIPY_CLIENT_SECRET
 os.environ['SPOTIPY_REDIRECT_URI'] = config.SPOTIPY_REDIRECT_URI  # Needed for user authorization
 css_file = os.path.join(cwd, 'streamlit', 'style.css')
-log_file = os.path.join(cwd, 'data', 'read_spotify_mpd_complete_log.txt')
+log_file = os.path.join(cwd, 'data', 'read_spotify_mpd_log.txt')
 
 # Pickled models
 model_path = os.path.join(cwd, 'models', 'KMeans_K17_20000_sample_model.sav')
