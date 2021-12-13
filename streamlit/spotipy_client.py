@@ -2,6 +2,7 @@ import collections
 import re
 import base64
 import datetime
+import platform
 from numpy.core.arrayprint import format_float_positional
 import requests
 import spotipy
@@ -10,15 +11,26 @@ import time
 import random
 import pickle
 import sqlite3
+from sqlite3 import Error
 import numpy as np
 import pandas as pd
 import plotly.express as px
 from urllib.parse import urlencode
+from urllib.request import urlopen
 from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 from scipy.spatial.distance import cdist
 
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+
+def get_public_ip():
+    try:
+        data = str(urlopen('http://checkip.dyndns.com/').read())
+        # data = '<html><head><title>Current IP Check</title></head><body>Current IP Address: 65.96.168.198</body></html>\r\n'
+        ip = re.compile(r'Address: (\d+\.\d+\.\d+\.\d+)').search(data).group(1)
+    except:
+        ip = ''
+    return ip
 
 def get_num_tracks_fig(filename, opt='total', rows=200):
     with open(filename) as log_file:
@@ -52,6 +64,94 @@ def get_num_tracks_fig(filename, opt='total', rows=200):
                     color='tracks',
                     barmode=mode)
         return fig
+
+class User_FeedbackDB():
+    db_file = None
+    conn = None
+
+    def __init__(self, db_file, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.db_file = db_file
+        self.create_connection()
+        self.create_table()
+
+    def create_connection(self):
+        """ create a database connection to the SQLite database specified by db_file
+        :return: None
+        """
+        try:
+            self.conn = sqlite3.connect(self.db_file)
+        except Error as e:
+            print(e)
+
+    def create_table(self):
+        """ create a feedback table
+        :return: None
+        """
+        try:
+            sql_create_table_feedback = """ CREATE TABLE IF NOT EXISTS feedback (
+                                            hostname text NOT NULL,
+                                            user_ip text NOT NULL,
+                                            feedback text NOT NULL,
+                                            rec_type text NOT NULL,
+                                            rec_name text NOT NULL,
+                                            ml_model_options text,
+                                            username text
+                                            ); """
+            cur = self.conn.cursor()
+            cur.execute(sql_create_table_feedback)
+        except Error as e:
+            print(e)
+            print('Failed to create feedback table')
+
+    def check_feedback_exists(self, feedback):
+        """
+        Query feedback by user_ip, rec_name, ml_model_options, username
+        :param feedback_list:
+        :return: True/False
+        """
+        cur = self.conn.cursor()
+        cur.execute("SELECT feedback FROM feedback WHERE user_ip=? and rec_name=? and ml_model_options=? and username=?", (feedback[1], feedback[4], feedback[5], feedback[6]))
+        rows = cur.fetchall()
+        feedback_exists = False
+        if len(rows) > 0:
+            feedback_exists = True
+        return feedback_exists
+
+    def add_user_feedback(self, feedback):
+        """
+        Add a new feedback
+        :param feedback list:
+        :return: None
+        """
+        hostname = platform.node()
+        user_ip = get_public_ip()
+        data_tuple = tuple([hostname, user_ip] + feedback)
+        if self.check_feedback_exists(data_tuple):
+            return
+        sql = ''' INSERT INTO feedback(hostname, user_ip, feedback, rec_type, rec_name, ml_model_options, username)
+                VALUES(?,?,?,?,?,?,?) '''
+        try:
+            cur = self.conn.cursor()
+            cur.execute(sql, data_tuple)
+            self.conn.commit()
+        except:
+            print('Failed to add feedback')
+
+    def get_feedback_plot(self):
+        feedback_df = pd.read_sql('select feedback, rec_type from feedback', self.conn)
+        fig = None
+        if len(feedback_df) > 0:
+            feedback_df = feedback_df.value_counts().reset_index().rename(columns={0: 'count'})
+            fb_order = {'Love it': 0, 'Like it': 1, 'Okay': 2, 'Hate it': 3}
+            feedback_df = feedback_df.sort_values(by='feedback', key=lambda x: x.map(fb_order))
+            fig = px.bar(feedback_df,
+                        y='count',
+                        x='feedback',
+                        color='rec_type',
+                        barmode='group')
+        return fig
+
 
 class SPR_ML_Model():
     def __init__(self, model_path, tsne_path, scaler_path, playlists_path, playlists_db_path, train_data_scaled_path):

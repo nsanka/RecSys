@@ -22,6 +22,7 @@ os.environ["SPOTIPY_CLIENT_SECRET"] = config.SPOTIPY_CLIENT_SECRET
 os.environ['SPOTIPY_REDIRECT_URI'] = config.SPOTIPY_REDIRECT_URI  # Needed for user authorization
 css_file = os.path.join(cwd, 'streamlit', 'style.css')
 log_file = os.path.join(cwd, 'data', 'read_spotify_mpd_log.txt')
+feedback_db_file = os.path.join(cwd, 'data', 'user_feedback.db')
 
 # Pickled models
 model_path = os.path.join(cwd, 'models', 'KMeans_K17_20000_sample_model.sav')
@@ -93,8 +94,25 @@ if 'wordcloud_fig' not in st.session_state:
     st.session_state.wordcloud_fig = None
 def get_recommendations(rec_type):
     st.session_state.got_rec = False
+    st.session_state.got_feedback = False
     st.session_state.app_mode = 'recommend'
     st.session_state.rec_type = rec_type
+
+if 'feedback_db' not in st.session_state:
+    st.session_state.feedback_db = User_FeedbackDB(feedback_db_file)
+if 'got_feedback' not in st.session_state:
+    st.session_state.got_feedback = False
+def add_feedback(feedback):
+    rec_type = st.session_state.rec_type
+    rec_name = st.session_state.rec_type
+    username = ''
+    ml_model_options = ''
+    if st.session_state.rec_type != 'playlist':
+        rec_type = 'favorite'
+        username = st.session_state.username
+    fb_list = [feedback, rec_type, rec_name, ml_model_options, username]
+    st.session_state.feedback_db.add_user_feedback(fb_list)
+    st.session_state.got_feedback = True
 
 # Sidebar
 def spr_sidebar():
@@ -303,51 +321,67 @@ def rec_page():
         st.subheader('Recommendations based on your Six Months Favorites:')
     else:
         st.subheader('Recommendations based on your All Time Favorites:')
+    status_holder = st.empty()
+    rec_songsholder = st.empty()
+    user_fbholder = st.empty()
 
     left_column, middle_column, right_column = st.columns(3)
     with left_column:
-        st.empty()
-    with right_column:
-        st.empty()
+        fb_plotholder = st.empty()
     with middle_column:
         rec_page_status = st.empty()
+    with right_column:
+        wordcloud_holder = st.empty()
+
     if st.session_state.ml_model is None:
-        with st.spinner('Loading ML Model...'):
-            load_spr_ml_model()
-        st.success('ML Model Loaded!')
+        with status_holder:
+            with st.spinner('Loading ML Model...'):
+                load_spr_ml_model()
+            st.success('ML Model Loaded!')
     else:
         rec_page_status.text('ML Model already loaded')
     
     if st.session_state.got_rec == False:
         spr = st.session_state.spr
         spr.set_ml_model(st.session_state.ml_model)
-        
-        with st.spinner('Getting Recommendations...'):
-            spr.len_of_favs = st.session_state.rec_type
-            spr.status_holder = rec_page_status
-            st.session_state.rec_uris = spr.get_songs_recommendations(n=10)
-            st.session_state.wordcloud_fig = spr.get_spotify_wrapped()
-            st.session_state.got_rec = True
-        st.success('Here are top 10 recommendations!')
+        with status_holder:
+            with st.spinner('Getting Recommendations...'):
+                spr.len_of_favs = st.session_state.rec_type
+                spr.status_holder = rec_page_status
+                st.session_state.rec_uris = spr.get_songs_recommendations(n=10)
+                st.session_state.wordcloud_fig = spr.get_spotify_wrapped()
+                st.session_state.got_rec = True
+            st.success('Here are top 10 recommendations!')
     else:
         rec_page_status.text('Showing already found recommendations')
         time.sleep(1)
         rec_page_status.text('For new recommendations, Click Get Recommentations in User Input')
         time.sleep(1)
 
-    rec_page_status.pyplot(st.session_state.wordcloud_fig)
-    #rec_page_status.empty()
-    rec_songsholder = st.empty()
+    rec_page_status.empty()
     insert_songs(rec_songsholder, st.session_state.rec_uris)
 
-    #st.header("Album")
-    #album_uri_link = 'https://open.spotify.com/embed/album/1weenld61qoidwYuZ1GESA'
-    #album_uri_link = 'https://open.spotify.com/embed/album/7B0qsVSWw3Cn8pngsHYNVQ?si=q3s6oKqBSVKPcEzAVCCrPw'
-    #components.iframe(album_uri_link, height=300)
+    if st.session_state.got_feedback == False:
+        with user_fbholder:
+            c1, c2, c3, c4 = st.columns((1, 1, 1, 1))
+            with c1:
+                st.button("Love it", key='love', on_click=add_feedback, args=('Love it',))
+            with c2:
+                st.button("Like it", key='like', on_click=add_feedback, args=('Like it',))
+            with c3:
+                st.button("Okay", key='okay', on_click=add_feedback, args=('Okay',))
+            with c4:
+                st.button("Hate it", key='hate', on_click=add_feedback, args=('Hate it',))
 
-    #st.header("Playlist")
-    #playlist_uri_link = 'https://open.spotify.com/embed/playlist/71vjvXmodX7GgWNV7oOb64'
-    #components.iframe(playlist_uri_link, height=300)
+    
+    fig = st.session_state.feedback_db.get_feedback_plot()
+    if fig:
+        with fb_plotholder:
+            st.subheader('User Feedback:')
+            st.plotly_chart(fig, use_container_width=True)
+
+    
+    wordcloud_holder.pyplot(st.session_state.wordcloud_fig)
 
 def blog_page():
     st.markdown("<br>", unsafe_allow_html=True)
