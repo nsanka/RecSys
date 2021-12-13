@@ -14,12 +14,14 @@ import sys
 # Get the current working directory
 cwd = os.getcwd()
 sys.path.insert(1, cwd)
-import config
-
+#import config
 # Spotify Credentials
-os.environ["SPOTIPY_CLIENT_ID"] = config.SPOTIPY_CLIENT_ID
-os.environ["SPOTIPY_CLIENT_SECRET"] = config.SPOTIPY_CLIENT_SECRET
-os.environ['SPOTIPY_REDIRECT_URI'] = config.SPOTIPY_REDIRECT_URI  # Needed for user authorization
+#os.environ["SPOTIPY_CLIENT_ID"] = config.SPOTIPY_CLIENT_ID
+#os.environ["SPOTIPY_CLIENT_SECRET"] = config.SPOTIPY_CLIENT_SECRET
+#os.environ['SPOTIPY_REDIRECT_URI'] = config.SPOTIPY_REDIRECT_URI  # Needed for user authorization
+#print("ENV", os.environ["SPOTIPY_CLIENT_ID"])
+#print("STS", st.secrets["SPOTIPY_CLIENT_ID"])
+
 css_file = os.path.join(cwd, 'streamlit', 'style.css')
 log_file = os.path.join(cwd, 'data', 'read_spotify_mpd_log.txt')
 feedback_db_file = os.path.join(cwd, 'data', 'user_feedback.db')
@@ -134,7 +136,7 @@ def spr_sidebar():
         about_button = st.button("About Our Team")
         st.checkbox('Display Output', True, key='display_output')
         st.session_state.log_holder = st.empty()
-        #log_output('None')
+        log_output('None')
         if data_button:
             st.session_state.app_mode = 'dataset'
         if model_button:
