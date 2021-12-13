@@ -3,6 +3,7 @@ from altair.vegalite.v4.api import value
 import streamlit as st
 import streamlit.components.v1 as components
 from pathlib import Path
+import time
 import base64
 import pandas as pd
 # Plot
@@ -27,6 +28,7 @@ model_path = os.path.join(cwd, 'models', 'KMeans_K17_20000_sample_model.sav')
 tsne_path = os.path.join(cwd, 'models', 'openTSNETransformer.sav')
 scaler_path = os.path.join(cwd, 'models', 'StdScaler.sav')
 playlists_path = os.path.join(cwd, 'data', 'playlists.json')
+playlists_db_path = os.path.join(cwd, 'data', 'spotify_20K_playlists.db')
 train_data_scaled_path = os.path.join(cwd, 'data' , 'scaled_data.csv')
 
 # Spotipy
@@ -87,6 +89,8 @@ if 'rec_type' not in st.session_state:
     st.session_state.rec_type = 'playlist'
 if 'rec_uris' not in st.session_state:
     st.session_state.rec_uris = []
+if 'wordcloud_fig' not in st.session_state:
+    st.session_state.wordcloud_fig = None
 def get_recommendations(rec_type):
     st.session_state.got_rec = False
     st.session_state.app_mode = 'recommend'
@@ -224,7 +228,7 @@ def favs_page():
     Name = st.session_state.spr.sp.me()['display_name']
     st.subheader(Name + '\'s Favorite Songs')
     if st.session_state.fav_songs is None:
-        st.session_state.fav_songs = st.session_state.spr.get_current_user_fav_tracks()['uri']
+        st.session_state.fav_songs = st.session_state.spr.get_tracks_from_playlist_or_user_favorites()['uri']
 
     left_column, middle_column, right_column = st.columns(3)
     with left_column:
@@ -256,12 +260,14 @@ def model_page():
     Types_of_Features = ("Playlist", 'Favorites')
     st.session_state.user_selection = st.session_state.user_op
     st.selectbox("Feature", Types_of_Features, key='user_selection', on_change=update_user_option)
+    model_page_status = st.empty()
 
     if st.session_state.user_selection == "Playlist":
         st.session_state.playlist_url = st.session_state.example_url
         st.text_input("Playlist URI", key='playlist_url', on_change=update_playlist_url)
         playlist_uri = st.session_state.playlist_url.split('/')[-1]
         st.session_state.spr = SpotifyRecommendations(playlist_uri=playlist_uri)
+        st.session_state.spr.status_holder = model_page_status
         playlist_page()
         st.markdown("<br>", unsafe_allow_html=True)
         st.button("Get Recommendations", key='pl', on_click=get_recommendations, args=('playlist',))
@@ -279,12 +285,14 @@ def model_page():
         st.text_input('Spotify Username', key='user', on_change=save_spotify_user)
         if st.session_state.authorize:
             st.session_state.spr = SpotifyRecommendations(sp_user = st.session_state.user)
+            st.session_state.spr.status_holder = model_page_status
             favs_page()
         else:
             st.button("Login with Spotify", on_click=set_authorize)
+    model_page_status.empty()
 
 def load_spr_ml_model():
-    st.session_state.ml_model = SPR_ML_Model(model_path, tsne_path, scaler_path, playlists_path, train_data_scaled_path)
+    st.session_state.ml_model = SPR_ML_Model(model_path, tsne_path, scaler_path, playlists_path, playlists_db_path, train_data_scaled_path)
     
 def rec_page():
     if st.session_state.rec_type == 'playlist':
@@ -296,28 +304,39 @@ def rec_page():
     else:
         st.subheader('Recommendations based on your All Time Favorites:')
 
+    left_column, middle_column, right_column = st.columns(3)
+    with left_column:
+        st.empty()
+    with right_column:
+        st.empty()
+    with middle_column:
+        rec_page_status = st.empty()
     if st.session_state.ml_model is None:
         with st.spinner('Loading ML Model...'):
             load_spr_ml_model()
         st.success('ML Model Loaded!')
+    else:
+        rec_page_status.text('ML Model already loaded')
     
     if st.session_state.got_rec == False:
         spr = st.session_state.spr
-        spr.set_ml_model(st.session_state.ml_model.model, st.session_state.ml_model.tsne_transformer, st.session_state.ml_model.scaler, 
-                         st.session_state.ml_model.playlists, st.session_state.ml_model.train_data_scaled_feats_df)
+        spr.set_ml_model(st.session_state.ml_model)
         
-        if st.session_state.rec_type == 'playlist':
-            with st.spinner('Getting Recommendations...'):
-                st.session_state.rec_uris = spr.get_playlist_songs_recommendations(n=10)
-                st.session_state.got_rec = True
-            st.success('Here are top 10 recommendations!')
-        else:
-            with st.spinner('Getting Recommendations...'):
-                spr.len_of_favs = st.session_state.rec_type
-                st.session_state.rec_uris = spr.get_songs_recommendations(n=10)
-                st.session_state.got_rec = True
-            st.success('Here are top 10 recommendations!')
+        with st.spinner('Getting Recommendations...'):
+            spr.len_of_favs = st.session_state.rec_type
+            spr.status_holder = rec_page_status
+            st.session_state.rec_uris = spr.get_songs_recommendations(n=10)
+            st.session_state.wordcloud_fig = spr.get_spotify_wrapped()
+            st.session_state.got_rec = True
+        st.success('Here are top 10 recommendations!')
+    else:
+        rec_page_status.text('Showing already found recommendations')
+        time.sleep(1)
+        rec_page_status.text('For new recommendations, Click Get Recommentations in User Input')
+        time.sleep(1)
 
+    rec_page_status.pyplot(st.session_state.wordcloud_fig)
+    #rec_page_status.empty()
     rec_songsholder = st.empty()
     insert_songs(rec_songsholder, st.session_state.rec_uris)
 
@@ -338,7 +357,7 @@ def blog_page():
     #### Introduction:
 
     Now a days we all see many automated recommender systems everywhere, a few well known ones are Netflix, Amazon, Youtube, LinkedIn, etc. 
-    In this series, let’s see how to build a recommender system using machine learning from scratch. As part of this series, 
+    In this series, let's see how to build a recommender system using machine learning from scratch. As part of this series, 
     I would like to show how we can create a framework for applying different machine learning algorithms on a real world music dataset to 
     predict the playlist/songs recommendations. We will use four main approaches such as content based filtering, collaborative filtering, 
     model based methods and deep neural networks...
