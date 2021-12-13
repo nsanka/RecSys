@@ -154,7 +154,7 @@ class User_FeedbackDB():
 
 
 class SPR_ML_Model():
-    def __init__(self, model_path, tsne_path, scaler_path, playlists_path, playlists_db_path, train_data_scaled_path):
+    def __init__(self, model_path, tsne_path, scaler_path, playlists_db_path, train_data_scaled_path):
         """
         Inits class with hard coded values for the Spotify instance and gets the paths for all the models and data
         """
@@ -164,7 +164,6 @@ class SPR_ML_Model():
         self.scaler = pickle.load(open(scaler_path, 'rb'))
 
         # Data loading
-        self.playlists = json.load(open(playlists_path, "r"))
         self.playlists_db = playlists_db_path
         conn = sqlite3.connect(playlists_db_path)
         self.tracks_df = pd.read_sql('select * from tracks', conn)
@@ -211,7 +210,7 @@ class SpotifyRecommendations():
 
         self.playlist_uri = playlist_uri
         self.len_of_favs = 'all_time'
-        self.status_holder = None
+        self.log_output = None
         
         if self.playlist_uri is not None:
             self.sp = spotipy.Spotify(client_credentials_manager = SpotifyClientCredentials())
@@ -231,7 +230,6 @@ class SpotifyRecommendations():
         self.scaler = ml_model.scaler
 
         # Data loading
-        #self.playlists = ml_model.playlists
         self.tracks_df = ml_model.tracks_df
         self.playlists_df = ml_model.playlists_df
         self.features_df = ml_model.features_df
@@ -241,14 +239,14 @@ class SpotifyRecommendations():
     def get_audio_features_df(self, track_uris_list=None, playlist_pids_list=None):
         # Get all track_uri for playlists
         if playlist_pids_list is not None:
-            self.status_holder.text('Got Playlists: ' + ','.join([str(pid) for pid in playlist_pids_list]))
+            self.log_output('Got Playlists: ' + ','.join([str(pid) for pid in playlist_pids_list]))
             ratings_df = self.ratings_df[self.ratings_df['pid'].isin(playlist_pids_list)].copy()
             tracks_df = self.tracks_df[self.tracks_df['track_id'].isin(ratings_df['track_id'].values)].copy()
             track_uris_list = tracks_df['track_uri'].values
         
-        self.status_holder.text('Tracks in this list: ' + str(len(track_uris_list)))
+        self.log_output('Tracks in this list: ' + str(len(track_uris_list)))
         time.sleep(0.5)
-        self.status_holder.text('Unique tracks in this list: ' + str(len(set(track_uris_list))))
+        self.log_output('Unique tracks in this list: ' + str(len(set(track_uris_list))))
         # Find audio features if track_uri is already in the database:
         tracks_df = self.tracks_df[self.tracks_df['track_uri'].isin(set(track_uris_list))][['track_id', 'track_uri']].copy()
         exist_audio_feats_df = self.features_df[self.features_df['track_id'].isin(tracks_df['track_id'].values)].copy()
@@ -257,7 +255,7 @@ class SpotifyRecommendations():
         exist_audio_feats_df.rename(columns={'track_uri':'uri'}, inplace=True)
         time.sleep(0.5)
         if len(exist_audio_feats_df) == len(set(track_uris_list)):
-            self.status_holder.text('Got all audio features from database for tracks: ' + str(len(exist_audio_feats_df)))
+            self.log_output('Got all audio features from database for tracks: ' + str(len(exist_audio_feats_df)))
             time.sleep(1)
             return exist_audio_feats_df
         track_uris_list = list(set(track_uris_list) - set(tracks_df['track_uri'].tolist()))
@@ -283,16 +281,16 @@ class SpotifyRecommendations():
         audio_feats_df = audio_feats_df[self.feat_cols_user]
         audio_feats_df['uri'] = track_uris_list
         #audio_feats_df.insert(column='uri', value=track_uris_list)
-        self.status_holder.text('Extracted audio features from Spotify: ' + str(len(audio_feats_df)))
+        self.log_output('Extracted audio features from Spotify: ' + str(len(audio_feats_df)))
         if len(exist_audio_feats_df) > 0:
-            self.status_holder.text('Got some audio features from database for tracks: ' + str(len(exist_audio_feats_df)))
+            self.log_output('Got some audio features from database for tracks: ' + str(len(exist_audio_feats_df)))
             time.sleep(1)
             audio_feats_df = pd.concat([exist_audio_feats_df, audio_feats_df])
         return audio_feats_df
 
     def get_tracks_from_playlist_or_user_favorites(self):
         if self.playlist_uri:
-            self.status_holder.text('Getting all tracks for Playlist')
+            self.log_output('Getting all tracks for Playlist')
             time.sleep(1)
             # Get all tracks in the playlist
             results = self.sp.playlist(self.playlist_uri)['tracks']
@@ -301,7 +299,7 @@ class SpotifyRecommendations():
                 results = self.sp.next(results)
                 tracks.extend(results['items'])
         else:
-            self.status_holder.text('Getting all tracks for User Favorites')
+            self.log_output('Getting all tracks for User Favorites')
             time.sleep(1)
             "Get all favorite tracks from current user and return them in a dataframe"
             results = self.sp.current_user_saved_tracks()
@@ -317,7 +315,7 @@ class SpotifyRecommendations():
         songs_df = songs_df[['name', 'id', 'track.id', 'track.name']]
         songs_df.rename(columns={'track.id':'uri', 'track.name': 'song', 'name': 'artist', 'id': 'artist_uri'}, inplace=True)
         self.artist_uri = songs_df['artist_uri'].tolist()
-        self.status_holder.text('Found unique tracks: ' + str(len(songs_df)))
+        self.log_output('Found unique tracks: ' + str(len(songs_df)))
         return songs_df
 
     def get_tracks_audio_features(self):
@@ -386,16 +384,18 @@ class SpotifyRecommendations():
             simi = cdist(sliced_data_array, scaled_y, metric=metric).argsort(axis=None)[:n]
         else:
             simi = cdist(sliced_data_array, scaled_y, metric=metric).argsort(axis=None)[-n:]
-        self.top_playlists = indices[simi]
+        top_playlists = indices[simi]
         
         if printing:
-            for idx in simi:
-                print('Playlist: {}\tpid:{}'.format(self.playlists[idx]['name'], self.playlists[idx]['pid']))
-                for song in self.playlists[idx]['tracks'][0:3]:
-                    print('Artist: {}\t Song:{}'.format(song['artist_name'], song['track_name']))
-                print('\n')
+            for idx in top_playlists:
+                self.log_output('Playlist: {}\tpid:{}'.format(self.playlists_df[self.playlists_df['pid'] == idx]['name'], idx))
+                ratings_df = self.ratings_df[self.ratings_df['pid'] == idx].copy()
+                tracks_df = self.tracks_df[self.tracks_df['track_id'].isin(ratings_df['track_id'].values)].copy()
+                for _, song in tracks_df.iloc[0:3].iterrows():
+                    self.log_output('Artist: {}\t Song:{}'.format(song['artist_name'], song['track_name']))
+                self.log_output('---')
         
-        return self.top_playlists
+        return top_playlists
 
     def get_songs_recommendations(self, n=30, printing=False):
         """
@@ -405,12 +405,9 @@ class SpotifyRecommendations():
             - printing (bool): Flag to print or not the song recommendations, default to False.
         """
 
-        try:
-            self.top_playlists
-        except:
-            self.get_top_n_playlists()
+        top_playlists = self.get_top_n_playlists(printing=True)
 
-        playlist_audio_features_df = self.get_audio_features_df(self, playlist_pids_list=self.top_playlists)
+        playlist_audio_features_df = self.get_audio_features_df(self, playlist_pids_list=top_playlists)
         array_audio_feats = playlist_audio_features_df[self.feat_cols_user].to_numpy()
         
         y_vector = np.array(self.raw_y).reshape(1,-1)
@@ -456,13 +453,13 @@ class SpotifyRecommendations():
         if self.playlist_uri is None:
             user = self.sp.current_user()['display_name']
             followers = self.sp.current_user()['followers']['total']
-            self.status_holder.text("Hello {}!".format(user))
-            self.status_holder.text("We are happy that you are using our product. Let's see some of your personal Spotify stats.\n")
+            self.log_output("Hello {}!".format(user))
+            self.log_output("We are happy that you are using our product. Let's see some of your personal Spotify stats.\n")
             time.sleep(5)
             if followers >= 1:
-                self.status_holder.text("At this moment you have a total of {} followers, that's not bad at all!\nThey know you have an amazing music taste.\n".format(followers))
+                self.log_output("At this moment you have a total of {} followers, that's not bad at all!\nThey know you have an amazing music taste.\n".format(followers))
             else:
-                self.status_holder.text("Ouch, at this moment you don't have any followers, let me know if you want me to follow you. I'll be happy to see what type of music you listen to.\n")
+                self.log_output("Ouch, at this moment you don't have any followers, let me know if you want me to follow you. I'll be happy to see what type of music you listen to.\n")
             time.sleep(6)
 
             top_artists = []
@@ -471,21 +468,21 @@ class SpotifyRecommendations():
                 for artist in self.sp.current_user_top_artists(time_range='long_term')['items']:
                     top_artists.append(artist['name'])
                     genres.append(artist['genres'])
-                self.status_holder.text("These are your top artist of all time:")
+                self.log_output("These are your top artist of all time:")
                 for i in top_artists[:5]:
-                    self.status_holder.text(i)
-                self.status_holder.text("\n")
+                    self.log_output(i)
+                self.log_output("\n")
             except:
-                self.status_holder.text("Ooops, it seems that you don't have top artist at the moment.\n")
+                self.log_output("Ooops, it seems that you don't have top artist at the moment.\n")
 
             time.sleep(6)
             top_tracks = []
             try:
-                self.status_holder.text("And these are your top tracks of all time:")
+                self.log_output("And these are your top tracks of all time:")
                 for i in self.sp.current_user_top_tracks(time_range='long_term')['items'][:5]:
-                    self.status_holder.text("{} - {}".format(i['name'], i['artists'][0]['name']))
+                    self.log_output("{} - {}".format(i['name'], i['artists'][0]['name']))
             except:
-                self.status_holder.text("Ooops, it seems that you don't have top tracks at the moment.\n")
+                self.log_output("Ooops, it seems that you don't have top tracks at the moment.\n")
 
         genres = []
         for artist in self.artist_uri:

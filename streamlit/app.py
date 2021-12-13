@@ -28,7 +28,6 @@ feedback_db_file = os.path.join(cwd, 'data', 'user_feedback.db')
 model_path = os.path.join(cwd, 'models', 'KMeans_K17_20000_sample_model.sav')
 tsne_path = os.path.join(cwd, 'models', 'openTSNETransformer.sav')
 scaler_path = os.path.join(cwd, 'models', 'StdScaler.sav')
-playlists_path = os.path.join(cwd, 'data', 'playlists.json')
 playlists_db_path = os.path.join(cwd, 'data', 'spotify_20K_playlists.db')
 train_data_scaled_path = os.path.join(cwd, 'data' , 'scaled_data.csv')
 
@@ -60,6 +59,8 @@ local_css(css_file)
 
 if 'app_mode' not in st.session_state:
     st.session_state.app_mode = 'about_us'
+if 'output' not in st.session_state:
+    st.session_state.output = 'Start Logging'
 
 if 'example_url' not in st.session_state:
     st.session_state.example_url = 'Example: https://open.spotify.com/embed/playlist/37i9dQZF1DX0kbJZpiYdZl'
@@ -114,6 +115,13 @@ def add_feedback(feedback):
     st.session_state.feedback_db.add_user_feedback(fb_list)
     st.session_state.got_feedback = True
 
+def log_output(new_text):
+    new_log = st.session_state.output
+    if new_text != 'None':
+        new_log = new_text + '\n' + st.session_state.output
+    if st.session_state.display_output:
+        st.session_state.output = st.session_state.log_holder.text_area('',value=new_log, height=500)
+
 # Sidebar
 def spr_sidebar():
     with st.sidebar:
@@ -124,6 +132,9 @@ def spr_sidebar():
         rec_button = st.button('Recommendations')
         blog_button = st.button('Blog Posts')
         about_button = st.button("About Our Team")
+        st.checkbox('Display Output', True, key='display_output')
+        st.session_state.log_holder = st.empty()
+        #log_output('None')
         if data_button:
             st.session_state.app_mode = 'dataset'
         if model_button:
@@ -139,9 +150,11 @@ def dataset_page():
     st.markdown("<br>", unsafe_allow_html=True)
     """
     # Spotify Million Playlist Dataset
-    For this project we are using The Million Playist Dataset, as it name implies, the dataset consists of one million playlists and each playlists contains n number of songs and some metadata is included as well such as name of the playlist, duration, number of songs, number of artists, etc.
+    For this project we are using The Million Playist Dataset, as it name implies, the dataset consists of one million playlists and each playlists 
+    contains n number of songs and some metadata is included as well such as name of the playlist, duration, number of songs, number of artists, etc.
     
-    It is created by sampling playlists from the billions of playlists that Spotify users have created over the years. Playlists that meet the following criteria were selected at random:
+    It is created by sampling playlists from the billions of playlists that Spotify users have created over the years. 
+    Playlists that meet the following criteria were selected at random:
     - Created by a user that resides in the United States and is at least 13 years old
     - Was a public playlist at the time the MPD was generated
     - Contains at least 5 tracks
@@ -157,19 +170,33 @@ def dataset_page():
     As you can imagine a million anything is too large to handle and we are going to be using 2% of the data (20,000 playlists) to create the models and the scaling to an AWS instance.
     
     ### Enhancing the data:
-    Since this dataset is released by Spotify, it already includes a track id that can be used to generate API calls and access the multiple information that is provided from Spotify for a given song, artist or user.
+    Since this dataset is released by Spotify, it already includes a track id that can be used to generate API calls and 
+    access the multiple information that is provided from Spotify for a given song, artist or user.
     These are some of the features that are available to us for each song and we are going to use them to enhance our dataset and to help matching the user's favorite playlist.
     
     ##### Some of the available features are the following, they are measured mostly in a scale of 0-1:
-    **acousticness:** Confidence measure from 0.0 to 1.0 on if a track is acoustic.   
-    **danceability:** Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, rhythm stability, beat strength, and overall regularity. A value of 0.0 is least danceable and 1.0 is most danceable.   
-    **energy:** Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity. Typically, energetic tracks feel fast, loud, and noisy. For example, death metal has high energy, while a Bach prelude scores low on the scale. Perceptual features contributing to this attribute include dynamic range, perceived loudness, timbre, onset rate, and general entropy.   
-    **instrumentalness:** Predicts whether a track contains no vocals. “Ooh” and “aah” sounds are treated as instrumental in this context. Rap or spoken word tracks are clearly “vocal”. The closer the instrumentalness value is to 1.0, the greater likelihood the track contains no vocal content. Values above 0.5 are intended to represent instrumental tracks, but confidence is higher as the value approaches 1.0.   
-    **liveness:** Detects the presence of an audience in the recording. Higher liveness values represent an increased probability that the track was performed live. A value above 0.8 provides strong likelihood that the track is live.   
-    **loudness:** The overall loudness of a track in decibels (dB). Loudness values are averaged across the entire track and are useful for comparing relative loudness of tracks. Loudness is the quality of a sound that is the primary psychological correlate of physical strength (amplitude). Values typical range between -60 and 0 db.   
-    **speechiness:** Speechiness detects the presence of spoken words in a track. The more exclusively speech-like the recording (e.g. talk show, audio book, poetry), the closer to 1.0 the attribute value. Values above 0.66 describe tracks that are probably made entirely of spoken words. Values between 0.33 and 0.66 describe tracks that may contain both music and speech, either in sections or layered, including such cases as rap music. Values below 0.33 most likely represent music and other non-speech-like tracks.   
-    **tempo:** The overall estimated tempo of a track in beats per minute (BPM). In musical terminology, tempo is the speed or pace of a given piece and derives directly from the average beat duration.   
-    **valence:** A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry).   
+    - **acousticness:** Confidence measure from 0.0 to 1.0 on if a track is acoustic.   
+    - **danceability:** Danceability describes how suitable a track is for dancing based on a combination of musical elements including tempo, 
+    rhythm stability, beat strength, and overall regularity. A value of 0.0 is least danceable and 1.0 is most danceable.   
+    - **energy:** Energy is a measure from 0.0 to 1.0 and represents a perceptual measure of intensity and activity. Typically, 
+    energetic tracks feel fast, loud, and noisy. For example, death metal has high energy, while a Bach prelude scores low on the scale. 
+    Perceptual features contributing to this attribute include dynamic range, perceived loudness, timbre, onset rate, and general entropy.   
+    - **instrumentalness:** Predicts whether a track contains no vocals. “Ooh” and “aah” sounds are treated as instrumental in this context. Rap or 
+    spoken word tracks are clearly “vocal”. The closer the instrumentalness value is to 1.0, the greater likelihood the track contains no vocal content. 
+    Values above 0.5 are intended to represent instrumental tracks, but confidence is higher as the value approaches 1.0.   
+    - **liveness:** Detects the presence of an audience in the recording. Higher liveness values represent an increased probability 
+    that the track was performed live. A value above 0.8 provides strong likelihood that the track is live.   
+    - **loudness:** The overall loudness of a track in decibels (dB). Loudness values are averaged across the entire track and are useful 
+    for comparing relative loudness of tracks. Loudness is the quality of a sound that is the primary psychological correlate of physical 
+    strength (amplitude). Values typical range between -60 and 0 db.   
+    - **speechiness:** Speechiness detects the presence of spoken words in a track. The more exclusively speech-like the recording 
+    (e.g. talk show, audio book, poetry), the closer to 1.0 the attribute value. Values above 0.66 describe tracks that are probably 
+    made entirely of spoken words. Values between 0.33 and 0.66 describe tracks that may contain both music and speech, either in 
+    sections or layered, including such cases as rap music. Values below 0.33 most likely represent music and other non-speech-like tracks.   
+    - **tempo:** The overall estimated tempo of a track in beats per minute (BPM). In musical terminology, tempo is the 
+    speed or pace of a given piece and derives directly from the average beat duration.   
+    - **valence:** A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound 
+    more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry).   
     
     Information about features: [link](https://developer.spotify.com/documentation/web-api/reference/#/operations/get-audio-features)
     """
@@ -278,14 +305,13 @@ def model_page():
     Types_of_Features = ("Playlist", 'Favorites')
     st.session_state.user_selection = st.session_state.user_op
     st.selectbox("Feature", Types_of_Features, key='user_selection', on_change=update_user_option)
-    model_page_status = st.empty()
 
     if st.session_state.user_selection == "Playlist":
         st.session_state.playlist_url = st.session_state.example_url
         st.text_input("Playlist URI", key='playlist_url', on_change=update_playlist_url)
         playlist_uri = st.session_state.playlist_url.split('/')[-1]
         st.session_state.spr = SpotifyRecommendations(playlist_uri=playlist_uri)
-        st.session_state.spr.status_holder = model_page_status
+        st.session_state.spr.log_output = log_output
         playlist_page()
         st.markdown("<br>", unsafe_allow_html=True)
         st.button("Get Recommendations", key='pl', on_click=get_recommendations, args=('playlist',))
@@ -303,14 +329,13 @@ def model_page():
         st.text_input('Spotify Username', key='user', on_change=save_spotify_user)
         if st.session_state.authorize:
             st.session_state.spr = SpotifyRecommendations(sp_user = st.session_state.user)
-            st.session_state.spr.status_holder = model_page_status
+            st.session_state.spr.log_output = log_output
             favs_page()
         else:
             st.button("Login with Spotify", on_click=set_authorize)
-    model_page_status.empty()
 
 def load_spr_ml_model():
-    st.session_state.ml_model = SPR_ML_Model(model_path, tsne_path, scaler_path, playlists_path, playlists_db_path, train_data_scaled_path)
+    st.session_state.ml_model = SPR_ML_Model(model_path, tsne_path, scaler_path, playlists_db_path, train_data_scaled_path)
     
 def rec_page():
     if st.session_state.rec_type == 'playlist':
@@ -339,7 +364,7 @@ def rec_page():
                 load_spr_ml_model()
             st.success('ML Model Loaded!')
     else:
-        rec_page_status.text('ML Model already loaded')
+        log_output('ML Model already loaded')
     
     if st.session_state.got_rec == False:
         spr = st.session_state.spr
@@ -347,18 +372,17 @@ def rec_page():
         with status_holder:
             with st.spinner('Getting Recommendations...'):
                 spr.len_of_favs = st.session_state.rec_type
-                spr.status_holder = rec_page_status
+                spr.log_output = log_output
                 st.session_state.rec_uris = spr.get_songs_recommendations(n=10)
                 st.session_state.wordcloud_fig = spr.get_spotify_wrapped()
                 st.session_state.got_rec = True
             st.success('Here are top 10 recommendations!')
     else:
-        rec_page_status.text('Showing already found recommendations')
+        log_output('Showing already found recommendations')
         time.sleep(1)
-        rec_page_status.text('For new recommendations, Click Get Recommentations in User Input')
+        log_output('For new recommendations, Click Get Recommentations in User Input')
         time.sleep(1)
 
-    rec_page_status.empty()
     insert_songs(rec_songsholder, st.session_state.rec_uris)
 
     if st.session_state.got_feedback == False:
@@ -374,11 +398,14 @@ def rec_page():
                 st.button("Hate it", key='hate', on_click=add_feedback, args=('Hate it',))
 
     
-    fig = st.session_state.feedback_db.get_feedback_plot()
-    if fig:
-        with fb_plotholder:
-            st.subheader('User Feedback:')
-            st.plotly_chart(fig, use_container_width=True)
+    with fb_plotholder:
+        try:
+            fig = st.session_state.feedback_db.get_feedback_plot()
+            if fig:
+                st.subheader('User Feedback:')
+                st.plotly_chart(fig, use_container_width=True)
+        except:
+            pass
 
     
     wordcloud_holder.pyplot(st.session_state.wordcloud_fig)
@@ -423,9 +450,18 @@ def blog_page():
     [Read more on Medium...](https://medium.com/@david.de.hernandez/3056997a0fc5)
     """
     st.markdown("<br>", unsafe_allow_html=True)
+    """
+    ### Final Part: Deploy ML Based Recommender System into Production
+    #### Recap:
 
-    #part1_link = 'https://medium.com/@nsanka/music-recommender-system-part-1-86936d673c31'
-    #part1_link = 'https://nsanka.medium.com/music-recommender-system-part-1-86936d673c31?sk=4278ddfebc850599db2fca4a5f2a2104'
+    In the previous article, we created few machine learning models to find out the best recommendations based on user Spotify favorite music or playlist.
+
+    This article documents how we can put it all together for public use. We don't want our ML models to die in a Jupyter Notebook. We want our models to be 
+    integrated into a product/application and available to any user. The complete deployment process involves three major steps....
+
+    [Read more on Medium...](https://medium.com/@nsanka/music-recommender-system-part-5-4278bf89411c)
+    """
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # Example code to use JS
     #html_string = '''
