@@ -1,4 +1,3 @@
-import collections
 import re
 import base64
 import datetime
@@ -6,7 +5,6 @@ import platform
 from numpy.core.arrayprint import format_float_positional
 import requests
 import spotipy
-import json
 import time
 import random
 import pickle
