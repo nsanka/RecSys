@@ -218,16 +218,17 @@ class SpotifyRecommendations():
             # Defining scope to read user playlist and write playlist to user
             #self.scope = 'user-library-read user-follow-read playlist-modify-private playlist-modify'
             self.scope = "user-library-read"
-            self.sp_oauth = SpotifyOAuth(scope = self.scope)
-            try:
+            self.sp_oauth = SpotifyOAuth(scope = self.scope, username=sp_user)
+            try:            
                 token_info = self.sp_oauth.get_cached_token()
-                print("Found cached token!")
                 access_token = token_info['access_token']
                 self.sp = spotipy.Spotify(access_token)
+                #token = spotipy.util.prompt_for_user_token(sp_user, self.scope)
+                #self.sp = spotipy.Spotify(auth=token)
+                #self.sp_oauth = SpotifyOAuth(scope = self.scope, requests_session=True, requests_timeout=10, username=sp_user)
+                #self.sp = spotipy.Spotify(auth_manager=self.sp_oauth)
             except:
                 self.sp = None
-            #token = spotipy.util.prompt_for_user_token(sp_user, self.scope, show_dialog=True)
-            #self.sp = spotipy.Spotify(auth=token)
             #print(self.sp.me())
 
     def init_sp(self, response_url):
