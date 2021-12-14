@@ -151,6 +151,12 @@ class User_FeedbackDB():
                         barmode='group')
         return fig
 
+    def get_all_feedbacks_df(self):
+        all_feedbacks_df = pd.read_sql('select * from feedback', self.conn)
+        return all_feedbacks_df
+
+    def add_feedback_df(self, feedback_df):
+        feedback_df.to_sql(name='feedback', con=self.conn, if_exists='replace', index=False)
 
 class SPR_ML_Model():
     def __init__(self, model_path, tsne_path, scaler_path, playlists_db_path, train_data_scaled_path):

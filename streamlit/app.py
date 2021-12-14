@@ -61,6 +61,8 @@ local_css(css_file)
 
 if 'app_mode' not in st.session_state:
     st.session_state.app_mode = 'about_us'
+if 'is_admin' not in st.session_state:
+    st.session_state.is_admin = False
 if 'output' not in st.session_state:
     st.session_state.output = 'Start Logging'
 if 'response_url' not in st.session_state:
@@ -105,8 +107,16 @@ def get_recommendations(rec_type):
     st.session_state.app_mode = 'recommend'
     st.session_state.rec_type = rec_type
 
-if 'feedback_db' not in st.session_state:
-    st.session_state.feedback_db = User_FeedbackDB(feedback_db_file)
+def add_feedback_df(feedback_df):
+    feedback_db = User_FeedbackDB(feedback_db_file)
+    feedback_db.add_feedback_df(feedback_df)
+    del feedback_db
+def convert_df():
+    # IMPORTANT: Cache the conversion to prevent computation on every rerun
+    feedback_db = User_FeedbackDB(feedback_db_file)
+    feedback_df = feedback_db.get_all_feedbacks_df()
+    del feedback_db
+    return feedback_df.to_csv().encode('utf-8')
 if 'got_feedback' not in st.session_state:
     st.session_state.got_feedback = False
 def add_feedback(feedback):
@@ -118,7 +128,9 @@ def add_feedback(feedback):
         rec_type = 'favorite'
         username = st.session_state.username
     fb_list = [feedback, rec_type, rec_name, ml_model_options, username]
-    st.session_state.feedback_db.add_user_feedback(fb_list)
+    feedback_db = User_FeedbackDB(feedback_db_file)
+    feedback_db.add_user_feedback(fb_list)
+    del feedback_db
     st.session_state.got_feedback = True
 
 def log_output(new_text):
@@ -277,6 +289,8 @@ def insert_songs(placeholder, track_uris):
 
 def favs_page():
     Name = st.session_state.spr.sp.me()['display_name']
+    if Name == 'NSanka':
+        st.session_state.is_admin = True
     st.subheader(Name + '\'s Favorite Songs')
     if st.session_state.fav_songs is None:
         st.session_state.fav_songs = st.session_state.spr.get_tracks_from_playlist_or_user_favorites()['uri']
@@ -409,17 +423,17 @@ def rec_page():
             with c4:
                 st.button("Hate it", key='hate', on_click=add_feedback, args=('Hate it',))
 
-    
     with fb_plotholder:
         try:
-            fig = st.session_state.feedback_db.get_feedback_plot()
+            feedback_db = User_FeedbackDB(feedback_db_file)
+            fig = feedback_db.get_feedback_plot()
+            del feedback_db
             if fig:
                 st.subheader('User Feedback:')
                 st.plotly_chart(fig, use_container_width=True)
         except:
             pass
 
-    
     wordcloud_holder.pyplot(st.session_state.wordcloud_fig)
 
 def blog_page():
@@ -496,6 +510,23 @@ def about_page():
     &nbsp[![Follow](https://img.shields.io/twitter/follow/nsanka11?style=social)](https://www.twitter.com/nsanka11)
     """
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # Download/Upload user_feedback.db file as csv
+    if st.session_state.is_admin:
+        show_admin = st.checkbox('Upload/Download', value=False)
+        if show_admin:
+            uploaded_file = st.file_uploader("Choose a file")
+            if uploaded_file is not None:
+                user_feedback_df = pd.read_csv(uploaded_file, index_col=0)
+                add_feedback_df(user_feedback_df)
+                st.write(user_feedback_df)
+
+            feedback_csv = convert_df()
+            st.download_button(
+                label="Download User Feedback as CSV",
+                data=feedback_csv,
+                file_name='user_feedback.csv',
+            )
 
 def main():
     spr_sidebar()
