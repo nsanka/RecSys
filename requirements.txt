@@ -3,9 +3,10 @@ matplotlib==3.5.0
 numpy==1.19.5
 openTSNE==0.6.1
 pandas==1.2.5
+pip==21.3.1
 plotly==5.4.0
 requests==2.25.1
-scikit-learn==1.0.1
+scikit-learn==0.24.2
 scipy==1.7.3
 spotipy==2.19.0
 streamlit==1.2.0
