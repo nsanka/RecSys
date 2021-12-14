@@ -63,6 +63,10 @@ if 'app_mode' not in st.session_state:
     st.session_state.app_mode = 'about_us'
 if 'output' not in st.session_state:
     st.session_state.output = 'Start Logging'
+if 'response_url' not in st.session_state:
+    st.session_state.response_url = ''
+def init_sp():
+    st.session_state.spr.init_sp(st.session_state.response_url)
 
 if 'example_url' not in st.session_state:
     st.session_state.example_url = 'Example: https://open.spotify.com/embed/playlist/37i9dQZF1DX0kbJZpiYdZl'
@@ -211,13 +215,13 @@ def dataset_page():
 
 def playlist_page():
     st.subheader("User Playlist")
-    uri_link = st.session_state.playlist_url
-    if 'Example:' in uri_link:
-        uri_link = uri_link[9:]
+    playlist_uri = st.session_state.playlist_url.split('/')[-1].split('?')[0]
+    uri_link = 'https://open.spotify.com/embed/playlist/' + playlist_uri
     components.iframe(uri_link, height=300)
     return
-    spotify = SpotifyAPI(client_id, client_secret)
-    Data = spotify.search({"name": f"{uri_link}"}, search_type="playlist")
+    spotify = SpotifyAPI(os.environ["SPOTIPY_CLIENT_ID"], os.environ["SPOTIPY_CLIENT_SECRET"])
+    artist = 'Rock'
+    Data = spotify.search({"name": f"{artist}"}, search_type="track")
 
     need = []
     for i, item in enumerate(Data['tracks']['items']):
@@ -330,9 +334,15 @@ def model_page():
         st.session_state.user = st.session_state.username
         st.text_input('Spotify Username', key='user', on_change=save_spotify_user)
         if st.session_state.authorize:
-            st.session_state.spr = SpotifyRecommendations(sp_user = st.session_state.user)
-            st.session_state.spr.log_output = log_output
-            favs_page()
+            if st.session_state.response_url == '':
+                st.session_state.spr = SpotifyRecommendations(sp_user = st.session_state.user)
+                st.session_state.spr.log_output = log_output
+            if st.session_state.spr.sp:
+                favs_page()
+            else:
+                url = st.session_state.spr.get_html_for_login()
+                log_output('Visit below link, login to Spotify and input the redirected url in Input\n\n' + url + '\n')
+                st.text_input('Input', key='response_url', on_change=init_sp)
         else:
             st.button("Login with Spotify", on_click=set_authorize)
 

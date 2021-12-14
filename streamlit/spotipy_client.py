@@ -1,3 +1,4 @@
+import os
 import re
 import base64
 import datetime
@@ -217,9 +218,27 @@ class SpotifyRecommendations():
             # Defining scope to read user playlist and write playlist to user
             #self.scope = 'user-library-read user-follow-read playlist-modify-private playlist-modify'
             self.scope = "user-library-read"
-            token = spotipy.util.prompt_for_user_token(sp_user, self.scope)
-            self.sp = spotipy.Spotify(auth=token)
+            self.sp_oauth = SpotifyOAuth(scope = self.scope)
+            try:
+                token_info = self.sp_oauth.get_cached_token()
+                print("Found cached token!")
+                access_token = token_info['access_token']
+                self.sp = spotipy.Spotify(access_token)
+            except:
+                self.sp = None
+            #token = spotipy.util.prompt_for_user_token(sp_user, self.scope, show_dialog=True)
+            #self.sp = spotipy.Spotify(auth=token)
             #print(self.sp.me())
+
+    def init_sp(self, response_url):
+        code = self.sp_oauth.parse_response_code(response_url)
+        #print(sp_oauth.get_access_token(code))
+        access_token = self.sp_oauth.get_access_token(code, as_dict=False)
+        self.sp = spotipy.Spotify(access_token)
+
+    def get_html_for_login(self):
+        auth_url = self.sp_oauth.get_authorize_url()
+        return auth_url
 
     def set_ml_model(self, ml_model):
         # Model loading
@@ -603,13 +622,14 @@ class SpotifyAPI(object):
 
     def base_search(self, query_params):
         headers = self.get_resource_header()
+        #print(headers)
         endpoint = "https://api.spotify.com/v1/search"
         lookup_url = f"{endpoint}?{query_params}"
-        print(lookup_url)
+        #print(lookup_url)
         r = requests.get(lookup_url, headers=headers)
         if r.status_code not in range(200, 299):
             return {}
-        print(r.json())
+        #print(r.json())
         return r.json()
 
     def search(self, query=None, operator=None, operator_query=None, search_type='playlist'):
@@ -623,6 +643,6 @@ class SpotifyAPI(object):
                 if isinstance(operator_query, str):
                     query = f"{query} {operator} {operator_query}"
         query_params = urlencode({"q": query, "type": search_type.lower()})
-        print(query_params)
+        #print(query_params)
         return self.base_search(query_params)
    
