@@ -18,9 +18,32 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 from scipy.spatial.distance import cdist
+import seaborn as sns
 
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+
+cwd = os.getcwd()
+
+#import sys
+#sys.path.insert(1, cwd)
+#import config
+# Spotify Credentials
+#os.environ["SPOTIPY_CLIENT_ID"] = config.SPOTIPY_CLIENT_ID
+#os.environ["SPOTIPY_CLIENT_SECRET"] = config.SPOTIPY_CLIENT_SECRET
+#os.environ['SPOTIPY_REDIRECT_URI'] = config.SPOTIPY_REDIRECT_URI  # Needed for user authorization
+#print("STS", st.secrets["SPOTIPY_CLIENT_ID"])
+
+log_filename = os.path.join(cwd, 'data', 'read_spotify_mpd_log.txt')
+feedback_db_file = os.path.join(cwd, 'data', 'user_feedback.db')
+
+# Pickled models
+model_path = os.path.join(cwd, 'models', 'KMeans_K17_20000_sample_model.sav')
+tsne_path = os.path.join(cwd, 'models', 'openTSNETransformer.sav')
+scaler_path = os.path.join(cwd, 'models', 'StdScaler.sav')
+playlists_db_path = os.path.join(cwd, 'data', 'spotify_20K_playlists.db')
+train_data_scaled_path = os.path.join(cwd, 'data' , 'scaled_data.csv')
+openTSNE_path = os.path.join(cwd, 'data' , 'openTSNE_20000.csv')
 
 def get_public_ip():
     try:
@@ -31,8 +54,8 @@ def get_public_ip():
         ip = ''
     return ip
 
-def get_num_tracks_fig(filename, opt='total', rows=200):
-    with open(filename) as log_file:
+def get_num_tracks_fig(opt='total', rows=200):
+    with open(log_filename) as log_file:
         playlist_files = []
         new_tracks = []
         req_tracks = []
@@ -68,9 +91,9 @@ class User_FeedbackDB():
     db_file = None
     conn = None
 
-    def __init__(self, db_file, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.db_file = db_file
+        self.db_file = feedback_db_file
         self.create_connection()
         self.create_table()
 
@@ -159,7 +182,7 @@ class User_FeedbackDB():
         feedback_df.to_sql(name='feedback', con=self.conn, if_exists='replace', index=False)
 
 class SPR_ML_Model():
-    def __init__(self, model_path, tsne_path, scaler_path, playlists_db_path, train_data_scaled_path):
+    def __init__(self):
         """
         Inits class with hard coded values for the Spotify instance and gets the paths for all the models and data
         """
@@ -173,13 +196,17 @@ class SPR_ML_Model():
         conn = sqlite3.connect(playlists_db_path)
         self.tracks_df = pd.read_sql('select * from tracks', conn)
         self.playlists_df = pd.read_sql('select * from playlists', conn)
+        self.playlists_df['cluster'] = pd.Categorical(self.model.labels_)
         self.features_df = pd.read_sql('select * from features', conn)
         self.ratings_df = pd.read_sql('select * from ratings', conn)
         if conn:
             conn.close()
+        
         self.train_scaled_data = np.loadtxt(train_data_scaled_path, delimiter=',')
         self.train_data_scaled_feats_df = pd.DataFrame(self.train_scaled_data)
         self.train_data_scaled_feats_df['cluster'] = pd.Categorical(self.model.labels_)
+        self.openTSNE_df = pd.read_csv(openTSNE_path)
+        self.openTSNE_df['cluster'] = pd.Categorical(self.model.labels_)
         
 class SpotifyRecommendations():
     """
@@ -216,6 +243,9 @@ class SpotifyRecommendations():
         self.playlist_uri = playlist_uri
         self.len_of_favs = 'all_time'
         self.log_output = None
+        sequential =['Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds','YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 
+                    'RdPu', 'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
+        self.color = random.choice(sequential)
         
         if self.playlist_uri is not None:
             self.sp = spotipy.Spotify(client_credentials_manager = SpotifyClientCredentials())
@@ -259,17 +289,18 @@ class SpotifyRecommendations():
         self.features_df = ml_model.features_df
         self.ratings_df = ml_model.ratings_df
         self.train_data_scaled_feats_df = ml_model.train_data_scaled_feats_df
+        self.openTSNE_df = ml_model.openTSNE_df
 
     def get_audio_features_df(self, track_uris_list=None, playlist_pids_list=None):
+        self.log_output('Getting Audio features for the tracks')
         # Get all track_uri for playlists
         if playlist_pids_list is not None:
-            self.log_output('Got Playlists: ' + ','.join([str(pid) for pid in playlist_pids_list]))
+            self.log_output('Getting audio features for tracks in Top Playlists in the Cluster\n' + ','.join([str(pid) for pid in playlist_pids_list]))
             ratings_df = self.ratings_df[self.ratings_df['pid'].isin(playlist_pids_list)].copy()
             tracks_df = self.tracks_df[self.tracks_df['track_id'].isin(ratings_df['track_id'].values)].copy()
             track_uris_list = tracks_df['track_uri'].values
+            self.log_output('Tracks in this list: ' + str(len(track_uris_list)))
         
-        self.log_output('Tracks in this list: ' + str(len(track_uris_list)))
-        time.sleep(0.5)
         self.log_output('Unique tracks in this list: ' + str(len(set(track_uris_list))))
         # Find audio features if track_uri is already in the database:
         tracks_df = self.tracks_df[self.tracks_df['track_uri'].isin(set(track_uris_list))][['track_id', 'track_uri']].copy()
@@ -277,11 +308,10 @@ class SpotifyRecommendations():
         exist_audio_feats_df = exist_audio_feats_df.merge(tracks_df, on='track_id')
         exist_audio_feats_df.drop(columns='track_id', inplace=True)
         exist_audio_feats_df.rename(columns={'track_uri':'uri'}, inplace=True)
-        time.sleep(0.5)
         if len(exist_audio_feats_df) == len(set(track_uris_list)):
             self.log_output('Got all audio features from database for tracks: ' + str(len(exist_audio_feats_df)))
-            time.sleep(1)
             return exist_audio_feats_df
+        
         track_uris_list = list(set(track_uris_list) - set(tracks_df['track_uri'].tolist()))
 
         # Extract audio features from Spotify
@@ -308,14 +338,12 @@ class SpotifyRecommendations():
         self.log_output('Extracted audio features from Spotify: ' + str(len(audio_feats_df)))
         if len(exist_audio_feats_df) > 0:
             self.log_output('Got some audio features from database for tracks: ' + str(len(exist_audio_feats_df)))
-            time.sleep(1)
             audio_feats_df = pd.concat([exist_audio_feats_df, audio_feats_df])
         return audio_feats_df
 
     def get_tracks_from_playlist_or_user_favorites(self):
         if self.playlist_uri:
-            self.log_output('Getting all tracks for Playlist')
-            time.sleep(1)
+            self.log_output('---\nGetting all tracks for Playlist')
             # Get all tracks in the playlist
             results = self.sp.playlist(self.playlist_uri)['tracks']
             tracks = results['items']
@@ -324,7 +352,6 @@ class SpotifyRecommendations():
                 tracks.extend(results['items'])
         else:
             self.log_output('Getting all tracks for User Favorites')
-            time.sleep(1)
             "Get all favorite tracks from current user and return them in a dataframe"
             results = self.sp.current_user_saved_tracks()
             tracks = results['items']
@@ -342,7 +369,7 @@ class SpotifyRecommendations():
         self.log_output('Found unique tracks: ' + str(len(songs_df)))
         return songs_df
 
-    def get_tracks_audio_features(self):
+    def get_tracks_audio_features(self): 
         "Extract audio features from each track from the user's favorite tracks and return a dataframe"
         songs_df = self.get_tracks_from_playlist_or_user_favorites()
         if self.len_of_favs == 'last_month':
@@ -354,15 +381,16 @@ class SpotifyRecommendations():
 
         track_uris = songs_df['uri'].tolist()
         audio_feats_df = self.get_audio_features_df(track_uris_list=track_uris)
-        
-        songs_feats_df = songs_df.merge(audio_feats_df, how='right', on="uri")
-        return songs_feats_df
+        self.songs_feats_df = songs_df.merge(audio_feats_df, how='right', on="uri")
 
     def get_raw_y(self):
         "Get user 'y' vector without scaling"
-        songs_feats_df = self.get_tracks_audio_features()
+        try:
+            self.songs_feats_df
+        except:
+            self.get_tracks_audio_features()
 
-        self.raw_y = songs_feats_df[self.feat_cols_user].mean()
+        self.raw_y = self.songs_feats_df[self.feat_cols_user].mean()
         return self.raw_y
 
     def get_scaled_y_vector(self):
@@ -372,8 +400,8 @@ class SpotifyRecommendations():
         except:
             self.get_raw_y()
             
-        scaled_y = self.scaler.transform(np.array(self.raw_y).reshape(1,-1))
-        return scaled_y
+        self.scaled_y = self.scaler.transform(np.array(self.raw_y).reshape(1,-1))
+        return self.scaled_y
 
     def get_top_n_playlists(self, n=10, metric='cityblock', similar=True, printing=False):
         """
@@ -392,10 +420,13 @@ class SpotifyRecommendations():
             - top_playlists (np.array): indices of the top n playlists based on the train_data_scaled_feats_df dataframe
         
         """
-        scaled_y = self.get_scaled_y_vector()
+        try:
+            self.scaled_y
+        except:
+            self.get_scaled_y_vector()
 
         # Get labels from model and predict user cluster
-        self.user_cluster = self.model.predict(scaled_y)
+        self.user_cluster = self.model.predict(self.scaled_y)
         
         # Slice df for the predicted cluster and get Playlist IDs (PIDs)
         df_slice = self.train_data_scaled_feats_df[self.train_data_scaled_feats_df['cluster']==self.user_cluster[0]]
@@ -405,21 +436,22 @@ class SpotifyRecommendations():
         # Convert df slice to numpy, compute similarities and grab the top n PIDs
         sliced_data_array = df_slice.to_numpy()
         if similar:
-            simi = cdist(sliced_data_array, scaled_y, metric=metric).argsort(axis=None)[:n]
+            simi = cdist(sliced_data_array, self.scaled_y, metric=metric).argsort(axis=None)[:n]
         else:
-            simi = cdist(sliced_data_array, scaled_y, metric=metric).argsort(axis=None)[-n:]
-        top_playlists = indices[simi]
+            simi = cdist(sliced_data_array, self.scaled_y, metric=metric).argsort(axis=None)[-n:]
+        self.top_playlists = indices[simi]
         
         if printing:
-            for idx in top_playlists:
-                self.log_output('Playlist: {}\tpid:{}'.format(self.playlists_df[self.playlists_df['pid'] == idx]['name'], idx))
+            for idx in self.top_playlists:
+                self.log_output('---')
+                self.log_output('Playlist: {}\tpid:{}'.format(self.playlists_df[self.playlists_df['pid'] == idx]['name'].iloc[0], idx))
                 ratings_df = self.ratings_df[self.ratings_df['pid'] == idx].copy()
                 tracks_df = self.tracks_df[self.tracks_df['track_id'].isin(ratings_df['track_id'].values)].copy()
                 for _, song in tracks_df.iloc[0:3].iterrows():
                     self.log_output('Artist: {}\t Song:{}'.format(song['artist_name'], song['track_name']))
-                self.log_output('---')
+            self.log_output('---')
         
-        return top_playlists
+        return self.top_playlists
 
     def get_songs_recommendations(self, n=30, printing=False):
         """
@@ -428,10 +460,12 @@ class SpotifyRecommendations():
             - n (int): number of songs to recommend, default to 30.
             - printing (bool): Flag to print or not the song recommendations, default to False.
         """
+        try:
+            self.top_playlists
+        except:
+            self.get_top_n_playlists(printing=True)
 
-        top_playlists = self.get_top_n_playlists(printing=True)
-
-        playlist_audio_features_df = self.get_audio_features_df(self, playlist_pids_list=top_playlists)
+        playlist_audio_features_df = self.get_audio_features_df(playlist_pids_list=self.top_playlists)
         array_audio_feats = playlist_audio_features_df[self.feat_cols_user].to_numpy()
         
         y_vector = np.array(self.raw_y).reshape(1,-1)
@@ -467,7 +501,7 @@ class SpotifyRecommendations():
         #self.sp.playlist_add_items(new_playlist['id'],items=items)
         return items
 
-    def get_spotify_wrapped(self):
+    def get_genre_wordcloud_fig(self):
         "Get Spotify Wrapped for current user"
         try:
             self.artist_uri
@@ -479,12 +513,11 @@ class SpotifyRecommendations():
             followers = self.sp.current_user()['followers']['total']
             self.log_output("Hello {}!".format(user))
             self.log_output("We are happy that you are using our product. Let's see some of your personal Spotify stats.\n")
-            time.sleep(5)
+
             if followers >= 1:
                 self.log_output("At this moment you have a total of {} followers, that's not bad at all!\nThey know you have an amazing music taste.\n".format(followers))
             else:
                 self.log_output("Ouch, at this moment you don't have any followers, let me know if you want me to follow you. I'll be happy to see what type of music you listen to.\n")
-            time.sleep(6)
 
             top_artists = []
             genres = []
@@ -497,10 +530,8 @@ class SpotifyRecommendations():
                     self.log_output(i)
                 self.log_output("\n")
             except:
-                self.log_output("Ooops, it seems that you don't have top artist at the moment.\n")
+                self.log_output("Ooops, it seems that you don't have top artists at the moment.\n")
 
-            time.sleep(6)
-            top_tracks = []
             try:
                 self.log_output("And these are your top tracks of all time:")
                 for i in self.sp.current_user_top_tracks(time_range='long_term')['items'][:5]:
@@ -514,18 +545,64 @@ class SpotifyRecommendations():
 
         text = [item for sublist in genres for item in sublist]
         text = ' '.join(text)
-        text
-
-        sequential =['Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds','YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 
-                    'RdPu', 'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
-        color = random.choice(sequential)
-
-        wc = WordCloud(background_color ='white',relative_scaling=0, width=500, height=500, colormap=color).generate(text)
+        wc = WordCloud(background_color ='white',relative_scaling=0, width=500, height=500, colormap=self.color).generate(text)
         fig, ax = plt.subplots(1, 1, figsize=(5, 5))
         ax.imshow(wc, interpolation='bilinear')
         ax.axis("off")
-        ax.title.set_text('These are the genres\nyou listen to the most.\n')
+        ax.title.set_text('Genres you listen to the most\n')
         return fig
+
+    def get_playlist_wordcloud_fig(self):        
+        # User Playlist Cluster
+        text = ' '.join(self.playlists_df[self.playlists_df['cluster']==self.user_cluster[0]]["name"])
+        wc = WordCloud(background_color ='white',relative_scaling=0, width=500, height=500, colormap=self.color).generate(text)
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        ax.imshow(wc, interpolation='bilinear')
+        ax.axis("off")
+        ax.title.set_text('Playlist names in your cluster {}\n'.format(self.user_cluster))
+        return fig
+
+    def get_user_cluster_all_fig(self):
+        # Transform user fav songs to TSNE to plot in vector space
+        try:
+            self.scaled_y
+        except:
+            self.get_scaled_y_vector()
+        try:
+            self.user_cluster
+        except:
+            self.user_cluster = self.model.predict(self.scaled_y)
+            
+        user_tsne = self.tsne_transformer.transform(self.scaled_y)[0]
+
+        # Blob all clusters
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        sns.scatterplot(ax=ax, x='X', y='Y', hue='cluster', style='cluster', data=self.openTSNE_df, legend=None)
+        ax.scatter(x=user_tsne[0], y=user_tsne[1], color='yellow', marker='*', s=500)
+        ax.title.set_text('You (Star) are here in the 17 Clusters')
+        return fig
+        #plt.show()
+
+    def get_user_cluster_single_fig(self):
+        try:
+            self.scaled_y
+        except:
+            self.get_scaled_y_vector()
+        try:
+            self.user_cluster
+        except:
+            self.user_cluster = self.model.predict(self.scaled_y)
+            
+        user_tsne = self.tsne_transformer.transform(self.scaled_y)[0]
+
+        # Blob user cluster
+        palette = {c:'purple' if c==self.user_cluster else 'darkgrey' for c in self.openTSNE_df.cluster.unique()}
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+        sns.scatterplot(ax=ax, x='X', y='Y', hue='cluster', style='cluster', data=self.openTSNE_df, legend=None, palette=palette)
+        ax.scatter(x=user_tsne[0], y=user_tsne[1], color='yellow', marker='*', s=500)
+        ax.title.set_text('You are in cluster {}'.format(self.user_cluster))
+        return fig
+        #plt.show()
 
     def __str__(self):
         return 'Spotify Recommender System with model: {} on {} playlists.'.format(self.model, len(self.train_data_scaled_feats_df))
@@ -554,7 +631,7 @@ class SpotifyRecommendations():
 #x.build_spotify_playlist(playlist_name = 'Metal Essentials', playlist='37i9dQZF1DWWOaP4H0w5b0') # Based on a Metal essentials playlist
 #x.build_spotify_playlist(playlist_name = 'Classical Essentials', playlist='37i9dQZF1DWWEJlAGA9gs0') # Based on a Classical essentials playlist
 #x.build_spotify_playlist() # On current user with default values
-#x.get_spotify_wrapped()
+#x.get_genre_wordcloud_fig()
 
 class SpotifyAPI(object):
     access_token = None

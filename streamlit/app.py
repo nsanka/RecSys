@@ -9,29 +9,10 @@ import pandas as pd
 # Plot
 import altair as alt
 import os
-import sys
 
 # Get the current working directory
 cwd = os.getcwd()
-sys.path.insert(1, cwd)
-#import config
-# Spotify Credentials
-#os.environ["SPOTIPY_CLIENT_ID"] = config.SPOTIPY_CLIENT_ID
-#os.environ["SPOTIPY_CLIENT_SECRET"] = config.SPOTIPY_CLIENT_SECRET
-#os.environ['SPOTIPY_REDIRECT_URI'] = config.SPOTIPY_REDIRECT_URI  # Needed for user authorization
-#print("ENV", os.environ["SPOTIPY_CLIENT_ID"])
-#print("STS", st.secrets["SPOTIPY_CLIENT_ID"])
-
 css_file = os.path.join(cwd, 'streamlit', 'style.css')
-log_file = os.path.join(cwd, 'data', 'read_spotify_mpd_log.txt')
-feedback_db_file = os.path.join(cwd, 'data', 'user_feedback.db')
-
-# Pickled models
-model_path = os.path.join(cwd, 'models', 'KMeans_K17_20000_sample_model.sav')
-tsne_path = os.path.join(cwd, 'models', 'openTSNETransformer.sav')
-scaler_path = os.path.join(cwd, 'models', 'StdScaler.sav')
-playlists_db_path = os.path.join(cwd, 'data', 'spotify_20K_playlists.db')
-train_data_scaled_path = os.path.join(cwd, 'data' , 'scaled_data.csv')
 
 # Spotipy
 from spotipy_client import *
@@ -99,8 +80,14 @@ if 'rec_type' not in st.session_state:
     st.session_state.rec_type = 'playlist'
 if 'rec_uris' not in st.session_state:
     st.session_state.rec_uris = []
-if 'wordcloud_fig' not in st.session_state:
-    st.session_state.wordcloud_fig = None
+if 'genre_wordcloud_fig' not in st.session_state:
+    st.session_state.genre_wordcloud_fig = None
+if 'playlist_wordcloud_fig' not in st.session_state:
+    st.session_state.playlist_wordcloud_fig = None
+if 'user_cluster_all_fig' not in st.session_state:
+    st.session_state.user_cluster_all_fig = None
+if 'user_cluster_single_fig' not in st.session_state:
+    st.session_state.user_cluster_single_fig = None
 def get_recommendations(rec_type):
     st.session_state.got_rec = False
     st.session_state.got_feedback = False
@@ -108,12 +95,12 @@ def get_recommendations(rec_type):
     st.session_state.rec_type = rec_type
 
 def add_feedback_df(feedback_df):
-    feedback_db = User_FeedbackDB(feedback_db_file)
+    feedback_db = User_FeedbackDB()
     feedback_db.add_feedback_df(feedback_df)
     del feedback_db
 def convert_df():
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
-    feedback_db = User_FeedbackDB(feedback_db_file)
+    feedback_db = User_FeedbackDB()
     feedback_df = feedback_db.get_all_feedbacks_df()
     del feedback_db
     return feedback_df.to_csv().encode('utf-8')
@@ -128,7 +115,7 @@ def add_feedback(feedback):
         rec_type = 'favorite'
         username = st.session_state.username
     fb_list = [feedback, rec_type, rec_name, ml_model_options, username]
-    feedback_db = User_FeedbackDB(feedback_db_file)
+    feedback_db = User_FeedbackDB()
     feedback_db.add_user_feedback(fb_list)
     del feedback_db
     st.session_state.got_feedback = True
@@ -149,6 +136,7 @@ def spr_sidebar():
         model_button = st.button('User Input')
         rec_button = st.button('Recommendations')
         blog_button = st.button('Blog Posts')
+        conc_button = st.button('Conclusions')
         about_button = st.button("About Our Team")
         st.checkbox('Display Output', True, key='display_output')
         st.session_state.log_holder = st.empty()
@@ -161,13 +149,16 @@ def spr_sidebar():
             st.session_state.app_mode = 'recommend'
         if blog_button:
             st.session_state.app_mode = 'blog'
+        if conc_button:
+            st.session_state.app_mode = 'conclusions'
         if about_button:
             st.session_state.app_mode = 'about_us'
 
 def dataset_page():
     st.markdown("<br>", unsafe_allow_html=True)
     """
-    # Spotify Million Playlist Dataset
+    ## Spotify Million Playlist Dataset
+    -----------------------------------
     For this project we are using The Million Playist Dataset, as it name implies, the dataset consists of one million playlists and each playlists 
     contains n number of songs and some metadata is included as well such as name of the playlist, duration, number of songs, number of artists, etc.
     
@@ -185,12 +176,14 @@ def dataset_page():
     - Does not have an offensive title
     - Does not have an adult-oriented title if the playlist was created by a user under 18 years of age
     
-    As you can imagine a million anything is too large to handle and we are going to be using 2% of the data (20,000 playlists) to create the models and the scaling to an AWS instance.
+    As you can imagine a million anything is too large to handle and we are going to be using 2% of the data (20,000 playlists) to create the models 
+    and the scaling to an AWS instance.
     
     ### Enhancing the data:
     Since this dataset is released by Spotify, it already includes a track id that can be used to generate API calls and 
     access the multiple information that is provided from Spotify for a given song, artist or user.
-    These are some of the features that are available to us for each song and we are going to use them to enhance our dataset and to help matching the user's favorite playlist.
+    These are some of the features that are available to us for each song and we are going to use them to enhance our dataset and to help matching 
+    the user's favorite playlist.
     
     ##### Some of the available features are the following, they are measured mostly in a scale of 0-1:
     - **acousticness:** Confidence measure from 0.0 to 1.0 on if a track is acoustic.   
@@ -221,12 +214,13 @@ def dataset_page():
     st.markdown("<br>", unsafe_allow_html=True)
 
     st.subheader('Total VS New Tracks in each json file')
-    st.plotly_chart(get_num_tracks_fig(log_file, 'total'), use_container_width=True)
+    st.plotly_chart(get_num_tracks_fig('total'), use_container_width=True)
     st.subheader('Existing VS New Tracks in each json file')
-    st.plotly_chart(get_num_tracks_fig(log_file, 'existing'), use_container_width=True)
+    st.plotly_chart(get_num_tracks_fig('existing'), use_container_width=True)
 
 def playlist_page():
     st.subheader("User Playlist")
+    st.markdown('---')
     playlist_uri = st.session_state.playlist_url.split('/')[-1].split('?')[0]
     uri_link = 'https://open.spotify.com/embed/playlist/' + playlist_uri
     components.iframe(uri_link, height=300)
@@ -321,10 +315,10 @@ def favs_page():
         insert_songs(right_songsholder, st.session_state.fav_songs)
 
 def model_page():
-    st.header("Select your preference")
+    st.subheader("Select your preference")
     Types_of_Features = ("Playlist", 'Favorites')
     st.session_state.user_selection = st.session_state.user_op
-    st.selectbox("Feature", Types_of_Features, key='user_selection', on_change=update_user_option)
+    st.radio("Feature", Types_of_Features, key='user_selection', on_change=update_user_option)
 
     if st.session_state.user_selection == "Playlist":
         st.session_state.playlist_url = st.session_state.example_url
@@ -361,7 +355,7 @@ def model_page():
             st.button("Login with Spotify", on_click=set_authorize)
 
 def load_spr_ml_model():
-    st.session_state.ml_model = SPR_ML_Model(model_path, tsne_path, scaler_path, playlists_db_path, train_data_scaled_path)
+    st.session_state.ml_model = SPR_ML_Model()
     
 def rec_page():
     if st.session_state.rec_type == 'playlist':
@@ -380,10 +374,12 @@ def rec_page():
     with left_column:
         fb_plotholder = st.empty()
     with middle_column:
-        rec_page_status = st.empty()
+        playlist_wordcloud_holder = st.empty()
+        user_cluster_all_holder = st.empty()
+        
     with right_column:
-        wordcloud_holder = st.empty()
-
+        genre_wordcloud_holder = st.empty()
+        user_cluster_single_holder = st.empty()
     if st.session_state.ml_model is None:
         with status_holder:
             with st.spinner('Loading ML Model...'):
@@ -400,14 +396,14 @@ def rec_page():
                 spr.len_of_favs = st.session_state.rec_type
                 spr.log_output = log_output
                 st.session_state.rec_uris = spr.get_songs_recommendations(n=10)
-                st.session_state.wordcloud_fig = spr.get_spotify_wrapped()
+                st.session_state.genre_wordcloud_fig = spr.get_genre_wordcloud_fig()
+                st.session_state.playlist_wordcloud_fig = spr.get_playlist_wordcloud_fig()
+                st.session_state.user_cluster_all_fig = spr.get_user_cluster_all_fig()
+                st.session_state.user_cluster_single_fig = spr.get_user_cluster_single_fig()
                 st.session_state.got_rec = True
             st.success('Here are top 10 recommendations!')
     else:
         log_output('Showing already found recommendations')
-        time.sleep(1)
-        log_output('For new recommendations, Click Get Recommentations in User Input')
-        time.sleep(1)
 
     insert_songs(rec_songsholder, st.session_state.rec_uris)
 
@@ -425,7 +421,7 @@ def rec_page():
 
     with fb_plotholder:
         try:
-            feedback_db = User_FeedbackDB(feedback_db_file)
+            feedback_db = User_FeedbackDB()
             fig = feedback_db.get_feedback_plot()
             del feedback_db
             if fig:
@@ -434,12 +430,17 @@ def rec_page():
         except:
             pass
 
-    wordcloud_holder.pyplot(st.session_state.wordcloud_fig)
+    genre_wordcloud_holder.pyplot(st.session_state.genre_wordcloud_fig)
+    playlist_wordcloud_holder.pyplot(st.session_state.playlist_wordcloud_fig)
+    user_cluster_all_holder.pyplot(st.session_state.user_cluster_all_fig)
+    user_cluster_single_holder.pyplot(st.session_state.user_cluster_single_fig)
 
 def blog_page():
     st.markdown("<br>", unsafe_allow_html=True)
     """
     ## Creating Recommender System using Machine Learning
+    --------
+    
     ### Part 1: Create Development Environment
     #### Introduction:
 
@@ -450,9 +451,7 @@ def blog_page():
     model based methods and deep neural networks...
     
     [Read more on Medium...](https://nsanka.medium.com/music-recommender-system-part-1-86936d673c31?sk=4278ddfebc850599db2fca4a5f2a2104)
-    """
-    st.markdown("<br>", unsafe_allow_html=True)
-    """
+    
     ### Part 2: Get the music dataset and perform Exploratory Data Analysis
     #### Recap:
 
@@ -463,20 +462,26 @@ def blog_page():
     We will also explore the dataset to know the features and combine with additional data fields obtained via the Spotify API...
     
     [Read more on Medium...](https://nsanka.medium.com/music-recommender-system-part-2-ff4c3f54cba3?sk=2ad792ce8d7cf1433a8a50cebf2915e3)
-    """
-    st.markdown("<br>", unsafe_allow_html=True)
-    """
-    ### Part 3: Get the music dataset and perform Exploratory Data Analysis
+
+    ### Part 3: Build and train machine learning models
     #### The Data
 
     For this project we are using The Million Playlist Dataset (MPD) released by Spotify. As it name implies, the dataset consists of one million 
     playlists and each playlists contains n number of songs and additional metadata is included as well such as title of the playlist, duration, 
     number of songs, number of artists, etc...
 
-    [Read more on Medium...](https://medium.com/@david.de.hernandez/3056997a0fc5)
-    """
-    st.markdown("<br>", unsafe_allow_html=True)
-    """
+    [Read more on Medium...](https://medium.com/@david.de.hernandez/modeling-data-for-a-spotify-recommender-system-3056997a0fc5?sk=7ce613a3d5cbd4a69e73804983d49f91)
+    
+    ### Part 4: Evaluate the effect of dataset size on machine learning models
+    #### The Data
+
+    As mentioned in my previous entry, the modeling was done with 2% of the data (20,000) samples. Which for some might or might not be large enough.
+
+    Talking about big data, definitely 20k samples is not big enough. For our dataset, 1 Million playlists, 66.3 Million tracks among the playlists and 
+    2.2 Million unique tracks, we are dealing with a serious dataset....
+
+    [Read more on Medium...](https://medium.com/@david.de.hernandez/scaling-the-data-on-an-aws-instance-fa71476e0d7c)
+    
     ### Final Part: Deploy ML Based Recommender System into Production
     #### Recap:
 
@@ -500,17 +505,57 @@ def blog_page():
     #              '''
     #components.html(html_string)
 
+def conclusions_page():
+    st.markdown("<br>", unsafe_allow_html=True)
+    """
+    ## Conclusions:
+    --------------
+    This project has made me grow in so many areas and I am happy I worked with the people in my team.
+
+    One of the reasons I pushed for a full stack project was to gain experience and to touch all of the areas needed to create a 
+    product that anyone can use from anywhere and with the resources we had we were able to do it.
+
+    This project touched in so many areas that I will try to summarize below.
+    - **Data collection** — Even though the core dataset we used was provided by Spotify, we still needed to go and look for other 
+    data sources to enhance the data and combine it with the core data set. This activity involved an API setup and parsing the full 1M dataset.
+    - **Supervised and Unsupervised Learning** — We decided to take an innovative approach where we are aiming for novelty where a given user is 
+    predicted into a cluster and then computing a distance to recommend a set of tracks. Exploring different families of cluster algorithms and 
+    learning about advantages and disadvantages to make the best selection as well as deciding which measure distance makes the most sense for our purposes.
+    - **Efficient Data Processing** — Midway through the project when we wanted to use the full 1M dataset we realized that it represents its own challenge and 
+    we needed to rework the code to be able to not only run our analysis but to actually finalize the analysis. One thing that was a life saver was to develop 
+    an SQLite database where the computing was reduced by 98%. Also by leveraging multiple API calls we were able to reduce the compute time from 40hours to 30minutes. 
+    When dealing with this big of a dataset you need to get creative and write very efficient code.
+    - **BigData** — Besides being efficient there are natural constraints about how to handle the data and as efficient as you can be the data itself will need high 
+    computing power. To train and score our model we needed to run the analysis on a 192GB instance with 42 cores. Without this, we would've not been able to finish on time.
+    - **Deployment** — Nowadays UX and overall Frontend is giving for granted but to actually put something up with models running in the background is not easy. 
+    Yes, there are good tools out there such as Heroku or Streamlit but we realized that to deploy massively and for the whole world is a whole other area of 
+    expertise that we tried to make our best to get it up and running.
+
+    At the end of the day, the role of a Data Scientist can be very specific but it needs to be aware of all the surrounding areas to deploy the best product possible.
+
+    You can model anything locally and write a report for it but if it does not have the ability to scale and reach the public massively, it is a big miss. 
+    From my perspective, if it is not reaching the most audience, why bother?
+    """
+    st.markdown("<br>", unsafe_allow_html=True)
+
 def about_page():
-    # Display header.
-    st.markdown("<br>", unsafe_allow_html=True)
-    """
-    # About Our Team
-
-    [![Star](https://img.shields.io/github/stars/nsanka/RecSys.svg?logo=github&style=social)](https://github.com/nsanka/RecSys/stargazers)
-    &nbsp[![Follow](https://img.shields.io/twitter/follow/nsanka11?style=social)](https://www.twitter.com/nsanka11)
-    """
-    st.markdown("<br>", unsafe_allow_html=True)
-
+    st.header('About Our Team')
+    st.markdown('---')
+    st.write('Thanks for visiting our Web App. This Web App is part of our Capstone project for Master of Applied Data Science (MADS) from University of Michigan - \
+              School of Information. We are the team of Spotify Playlist Recommender (SPR).')
+    st.markdown('---')
+    r1c1, r1c2 = st.columns([3, 1])
+    with r1c1:
+        st.subheader('Naga Sanka')
+        st.markdown('[![Star](https://img.shields.io/github/stars/nsanka/RecSys.svg?logo=github&style=social)](https://github.com/nsanka/RecSys/stargazers) \
+                     &nbsp[![Follow](https://img.shields.io/twitter/follow/nsanka11?style=social)](https://www.twitter.com/nsanka11)')
+        st.write('Naga Sanka, a Advanced Senior Engineer at Stellantis, and part of the MADS 2019 first fall cohort. He is originally from Mandapeta, Andhra Pradesh, India \
+                  and currently lives in Troy, MI with his wife and two kids. Naga earned his BTech degree in Mechanical Engineering at JNTU Hyderabad and then his MTech \
+                  degree in Fluid and Thermal Engineering from IIT Guwahati. He is fascinated with storytelling and problem solving through data. He joined in the MADS \
+                  program with a deep interest in how Data Science can be used to solve problems. Naga wants to see himself as a Data Scientist who has love of learning, \
+                  enjoy creating solutions, fixing applications, transform into great.')
+    with r1c2:
+        st.image(os.path.join(cwd, 'images', 'Naga.jpg'), width=300)
     # Download/Upload user_feedback.db file as csv
     if st.session_state.is_admin:
         show_admin = st.checkbox('Upload/Download', value=False)
@@ -527,6 +572,26 @@ def about_page():
                 data=feedback_csv,
                 file_name='user_feedback.csv',
             )
+    
+    st.markdown('---')
+    r2c1, r2c2 = st.columns([3, 1])
+    with r2c1:
+        st.subheader('David Hernandez')
+    with r2c2:
+        pass
+    
+    st.markdown('---')
+    r3c1, r3c2 = st.columns([3, 1])
+    with r3c1:
+        st.subheader('Sheila Pietono')
+    with r3c2:
+        pass
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+def spr_footer():
+    st.markdown('---')
+    st.markdown('© Copyright 2021 - Spotify Playlist Recommender By Naga Sanka, David Hernandez and Sheila Pietono')
 
 def main():
     spr_sidebar()
@@ -541,9 +606,14 @@ def main():
 
     if st.session_state.app_mode == 'blog':
         blog_page()
+
+    if st.session_state.app_mode == 'conclusions':
+        conclusions_page()
         
     if st.session_state.app_mode == 'about_us':
         about_page()
+
+    spr_footer()
 
 # Run main()
 if __name__ == '__main__':

@@ -10,6 +10,7 @@ scikit-learn==0.24.2
 scipy==1.7.3
 spotipy==2.19.0
 streamlit==1.2.0
+seaborn==0.11.2
 tqdm==4.62.3
 urllib3==1.26.7
 wordcloud==1.8.1
