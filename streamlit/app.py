@@ -544,49 +544,43 @@ def about_page():
     st.write('Thanks for visiting our Web App. This Web App is part of our Capstone project for Master of Applied Data Science (MADS) from University of Michigan - \
               School of Information. We are the team of Spotify Playlist Recommender (SPR).')
     st.markdown('---')
-    r1c1, r1c2 = st.columns([3, 1])
-    with r1c1:
+    r1c1, r1c2, r1c3, r1c4 = st.columns([1, 3, 1, 1])
+    with r1c2:
         st.subheader('Naga Sanka')
         st.markdown('[![Star](https://img.shields.io/github/stars/nsanka/RecSys.svg?logo=github&style=social)](https://github.com/nsanka/RecSys/stargazers) \
                      &nbsp[![Follow](https://img.shields.io/twitter/follow/nsanka11?style=social)](https://www.twitter.com/nsanka11)')
-        st.write('Naga Sanka, a Advanced Senior Engineer at Stellantis, and part of the MADS 2019 first fall cohort. He is originally from Mandapeta, Andhra Pradesh, India \
+        st.write('Naga Sanka, an Advanced Senior Engineer at Stellantis, and part of the MADS 2019 first fall cohort. He is originally from Mandapeta, Andhra Pradesh, India \
                   and currently lives in Troy, MI with his wife and two kids. Naga earned his BTech degree in Mechanical Engineering at JNTU Hyderabad and then his MTech \
                   degree in Fluid and Thermal Engineering from IIT Guwahati. He is fascinated with storytelling and problem solving through data. He joined in the MADS \
                   program with a deep interest in how Data Science can be used to solve problems. Naga wants to see himself as a Data Scientist who has love of learning, \
                   enjoy creating solutions, fixing applications, transform into great.')
-    with r1c2:
-        st.image(os.path.join(cwd, 'images', 'Naga.jpg'), width=300)
-    # Download/Upload user_feedback.db file as csv
-    if st.session_state.is_admin:
-        show_admin = st.checkbox('Upload/Download', value=False)
-        if show_admin:
-            uploaded_file = st.file_uploader("Choose a file")
-            if uploaded_file is not None:
-                user_feedback_df = pd.read_csv(uploaded_file, index_col=0)
-                add_feedback_df(user_feedback_df)
-                st.write(user_feedback_df)
 
-            feedback_csv = convert_df()
-            st.download_button(
-                label="Download User Feedback as CSV",
-                data=feedback_csv,
-                file_name='user_feedback.csv',
-            )
-    
-    st.markdown('---')
-    r2c1, r2c2 = st.columns([3, 1])
-    with r2c1:
+        # Download/Upload user_feedback.db file as csv
+        if st.session_state.is_admin:
+            show_admin = st.checkbox('Upload/Download', value=False)
+            if show_admin:
+                uploaded_file = st.file_uploader("Choose a file")
+                if uploaded_file is not None:
+                    user_feedback_df = pd.read_csv(uploaded_file, index_col=0)
+                    add_feedback_df(user_feedback_df)
+                    st.write(user_feedback_df)
+
+                feedback_csv = convert_df()
+                st.download_button(
+                    label="Download User Feedback as CSV",
+                    data=feedback_csv,
+                    file_name='user_feedback.csv',
+                )
+
+        st.markdown('---')
         st.subheader('David Hernandez')
-    with r2c2:
-        pass
-    
-    st.markdown('---')
-    r3c1, r3c2 = st.columns([3, 1])
-    with r3c1:
-        st.subheader('Sheila Pietono')
-    with r3c2:
-        pass
 
+        st.markdown('---')
+        st.subheader('Sheila Pietono')
+    with r1c3:
+        st.image(os.path.join(cwd, 'images', 'Naga.jpg'), width=300)
+        #st.markdown('---')
+        #st.markdown('---')
     st.markdown("<br>", unsafe_allow_html=True)
 
 def spr_footer():
