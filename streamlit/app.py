@@ -557,8 +557,13 @@ def about_page():
 
         # Download/Upload user_feedback.db file as csv
         if st.session_state.is_admin:
-            show_admin = st.checkbox('Upload/Download', value=False)
+            show_admin = st.checkbox('Show Delete/Upload/Download', value=False)
             if show_admin:
+                filenames = [f for f in next(os.walk(os.getcwd()), (None, None, []))[2] if '.cache' in f]
+                filenames.insert(0, 'Select File')
+                cache_file = st.selectbox('Select File to DELETE:', filenames)
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
                 uploaded_file = st.file_uploader("Choose a file")
                 if uploaded_file is not None:
                     user_feedback_df = pd.read_csv(uploaded_file, index_col=0)
