@@ -3,7 +3,6 @@ from altair.vegalite.v4.api import value
 import streamlit as st
 import streamlit.components.v1 as components
 from pathlib import Path
-import time
 import base64
 import pandas as pd
 # Plot
@@ -41,7 +40,7 @@ st.set_page_config(
 local_css(css_file)
 
 if 'app_mode' not in st.session_state:
-    st.session_state.app_mode = 'about_us'
+    st.session_state.app_mode = 'home'
 if 'is_admin' not in st.session_state:
     st.session_state.is_admin = False
 if 'output' not in st.session_state:
@@ -132,27 +131,27 @@ def spr_sidebar():
     with st.sidebar:
         st.image(SPR_SPOTIFY_URL, width=60)
         st.info('**Spotify Playlist Recommender**')
+        home_button = st.button("Home")
         data_button = st.button("About Dataset")
         model_button = st.button('User Input')
         rec_button = st.button('Recommendations')
-        blog_button = st.button('Blog Posts')
         conc_button = st.button('Conclusions')
-        about_button = st.button("About Our Team")
+        blog_button = st.button('Blog Posts')
         st.checkbox('Display Output', True, key='display_output')
         st.session_state.log_holder = st.empty()
         log_output('None')
+        if home_button:
+            st.session_state.app_mode = 'home'
         if data_button:
             st.session_state.app_mode = 'dataset'
         if model_button:
             st.session_state.app_mode = 'model'
         if rec_button:
             st.session_state.app_mode = 'recommend'
-        if blog_button:
-            st.session_state.app_mode = 'blog'
         if conc_button:
             st.session_state.app_mode = 'conclusions'
-        if about_button:
-            st.session_state.app_mode = 'about_us'
+        if blog_button:
+            st.session_state.app_mode = 'blog'
 
 def dataset_page():
     st.markdown("<br>", unsafe_allow_html=True)
@@ -354,6 +353,7 @@ def model_page():
         else:
             st.button("Login with Spotify", on_click=set_authorize)
 
+@st.cache(suppress_st_warning=True)
 def load_spr_ml_model():
     st.session_state.ml_model = SPR_ML_Model()
     
@@ -538,11 +538,12 @@ def conclusions_page():
     """
     st.markdown("<br>", unsafe_allow_html=True)
 
-def about_page():
-    st.header('About Our Team')
+def home_page():
+    st.header('Spotify Playlist Recommender (SPR)')
     st.markdown('---')
-    st.write('Thanks for visiting our Web App. This Web App is part of our Capstone project for Master of Applied Data Science (MADS) from University of Michigan - \
-              School of Information. We are the team of Spotify Playlist Recommender (SPR).')
+    st.write('Thanks for visiting our Web App. We are the team of Spotify Playlist Recommender (SPR). This Web App is part of our Capstone project for Master of Applied Data \
+              Science (MADS) from University of Michigan - School of Information.')
+    st.subheader('About Our Team')
     st.markdown('---')
     r1c1, r1c2, r1c3, r1c4 = st.columns([1, 3, 1, 1])
     with r1c2:
@@ -557,7 +558,7 @@ def about_page():
 
         # Download/Upload user_feedback.db file as csv
         if st.session_state.is_admin:
-            show_admin = st.checkbox('Show Delete/Upload/Download', value=False)
+            show_admin = st.checkbox('Show/Hide Admin Panel', value=False)
             if show_admin:
                 filenames = [f for f in next(os.walk(os.getcwd()), (None, None, []))[2] if '.cache' in f]
                 filenames.insert(0, 'Select File')
@@ -609,8 +610,8 @@ def main():
     if st.session_state.app_mode == 'conclusions':
         conclusions_page()
         
-    if st.session_state.app_mode == 'about_us':
-        about_page()
+    if st.session_state.app_mode == 'home':
+        home_page()
 
     spr_footer()
 
