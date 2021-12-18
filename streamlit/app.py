@@ -543,6 +543,12 @@ def home_page():
     st.markdown('---')
     st.write('Thanks for visiting our Web App. We are the team of Spotify Playlist Recommender (SPR). This Web App is part of our Capstone project for Master of Applied Data \
               Science (MADS) from University of Michigan - School of Information.')
+    st.write('Check this demo video to see how to use this Web App:')
+    st.markdown("<br>", unsafe_allow_html=True)
+    r0c1, r0c2, r0c3 = st.columns([1, 2, 1])
+    with r0c2:
+        st.video('https://youtu.be/45UAgDcMegM')
+    st.markdown("<br>", unsafe_allow_html=True)
     st.subheader('About Our Team')
     st.markdown('---')
     r1c1, r1c2, r1c3, r1c4 = st.columns([1, 3, 1, 1])
