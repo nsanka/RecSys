@@ -353,7 +353,7 @@ def model_page():
         else:
             st.button("Login with Spotify", on_click=set_authorize)
 
-@st.cache(suppress_st_warning=True)
+#@st.cache(suppress_st_warning=True)
 def load_spr_ml_model():
     st.session_state.ml_model = SPR_ML_Model()
     
