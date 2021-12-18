@@ -160,7 +160,13 @@ def dataset_page():
     -----------------------------------
     For this project we are using The Million Playist Dataset, as it name implies, the dataset consists of one million playlists and each playlists 
     contains n number of songs and some metadata is included as well such as name of the playlist, duration, number of songs, number of artists, etc.
-    
+    """
+    st.markdown("<br>", unsafe_allow_html=True)
+    r1c1, r1c2, r1c3 = st.columns([2, 3, 2])
+    with r1c2:
+        st.image(os.path.join(cwd, 'images', 'playlists_info.png'))
+    st.markdown("<br>", unsafe_allow_html=True)
+    """
     It is created by sampling playlists from the billions of playlists that Spotify users have created over the years. 
     Playlists that meet the following criteria were selected at random:
     - Created by a user that resides in the United States and is at least 13 years old
@@ -177,7 +183,21 @@ def dataset_page():
     
     As you can imagine a million anything is too large to handle and we are going to be using 2% of the data (20,000 playlists) to create the models 
     and the scaling to an AWS instance.
-    
+    """
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, r2c1, _, r2c2, _ = st.columns([1, 4, 1, 4, 1])
+    with r2c1:
+        st.image(os.path.join(cwd, 'images', 'playlist_count.png'))
+    with r2c2:
+        st.image(os.path.join(cwd, 'images', 'genres_count.png'))
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, r3c1, _, r3c2, _ = st.columns([1, 4, 1, 4, 1])
+    with r3c1:
+        st.image(os.path.join(cwd, 'images', 'tracks_count.png'))
+    with r3c2:
+        st.image(os.path.join(cwd, 'images', 'songs_per_playlist.png'))
+    st.markdown("<br>", unsafe_allow_html=True)
+    """
     ### Enhancing the data:
     Since this dataset is released by Spotify, it already includes a track id that can be used to generate API calls and 
     access the multiple information that is provided from Spotify for a given song, artist or user.
