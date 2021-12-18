@@ -270,7 +270,7 @@ class SpotifyRecommendations():
     def init_sp(self, response_url):
         code = self.sp_oauth.parse_response_code(response_url)
         #print(self.sp_oauth.get_access_token(code))
-        token_info = self.sp_oauth.get_access_token(code)
+        token_info = self.sp_oauth.get_access_token(code, check_cache=False)
         access_token = token_info['access_token']
         self.sp = spotipy.Spotify(access_token)
 
