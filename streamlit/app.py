@@ -504,7 +504,16 @@ def blog_page():
     Talking about big data, definitely 20k samples is not big enough. For our dataset, 1 Million playlists, 66.3 Million tracks among the playlists and 
     2.2 Million unique tracks, we are dealing with a serious dataset....
 
-    [Read more on Medium...](https://medium.com/@david.de.hernandez/scaling-the-data-on-an-aws-instance-fa71476e0d7c)
+    [Read more on Medium...](https://medium.com/@david.de.hernandez/scaling-data-on-an-aws-instance-for-an-spotify-recommender-system-fa71476e0d7c?sk=470e010f9d03865462400e65e07ab8ad)
+
+    ### PART 5: Pushing the Project to Cloud Computing (AWS Instance)
+    After the model has been tested on the smaller set of samples (20k out of a total of 1M data!), we would have to rely on cloud computing to scale our 
+    project as our local machines have not enough power to handle the amount of 1 million rows of data.
+    
+    With zero knowledge and experience from AWS, we explored on how to set it up on the cloud system and found that it was a little tricky to choose what 
+    part of the AWS is suitable for our project as the AWS itself is a very robust platform that are rich in options.
+
+    [Read more on Medium...](https://medium.com/@sheila_vp/part-4-pushing-the-project-to-cloud-computing-aws-instance-ce3b28ce8b6e)
     
     ### Final Part: Deploy ML Based Recommender System into Production
     #### Recap:
@@ -534,28 +543,31 @@ def conclusions_page():
     """
     ## Conclusions:
     --------------
-    This project has made me grow in so many areas and I am happy I worked with the people in my team.
+    As part of this Capstone, together we learnt so many new areas and it's my pleasure to be part of my amazing team. We all enjoyed throughout this two months journey.
 
-    One of the reasons I pushed for a full stack project was to gain experience and to touch all of the areas needed to create a 
+    One of the reasons why we wanted to go with a full stack project was to gain experience and to touch all of the areas needed to create a 
     product that anyone can use from anywhere and with the resources we had we were able to do it.
-
-    This project touched in so many areas that I will try to summarize below.
-    - **Data collection** — Even though the core dataset we used was provided by Spotify, we still needed to go and look for other 
-    data sources to enhance the data and combine it with the core data set. This activity involved an API setup and parsing the full 1M dataset.
-    - **Supervised and Unsupervised Learning** — We decided to take an innovative approach where we are aiming for novelty where a given user is 
-    predicted into a cluster and then computing a distance to recommend a set of tracks. Exploring different families of cluster algorithms and 
-    learning about advantages and disadvantages to make the best selection as well as deciding which measure distance makes the most sense for our purposes.
+    
+    This project touched on so many areas that I will try to summarize below.
+    - **Data Collection** — Even though the core dataset we used was provided by Spotify, we still needed to go and look for other data sources 
+    to enhance the data and combine it with the core data set. This activity involved an API setup and parsing the full 1M dataset.
+    - **Unsupervised Learning** — We decided to take an innovative approach where we are aiming for novelty where a given user is predicted into a 
+    cluster and then computing a distance to recommend a set of tracks. Exploring different families of cluster algorithms and learning about 
+    advantages and disadvantages to make the best selection as well as deciding which measure distance makes the most sense for our purposes.<br>
+    For the future expansion of this project, we will be looking into incorporating supervised learning to see how the model works in comparison to the unsupervised model that we currently have.
     - **Efficient Data Processing** — Midway through the project when we wanted to use the full 1M dataset we realized that it represents its own challenge and 
     we needed to rework the code to be able to not only run our analysis but to actually finalize the analysis. One thing that was a life saver was to develop 
     an SQLite database where the computing was reduced by 98%. Also by leveraging multiple API calls we were able to reduce the compute time from 40hours to 30minutes. 
     When dealing with this big of a dataset you need to get creative and write very efficient code.
-    - **BigData** — Besides being efficient there are natural constraints about how to handle the data and as efficient as you can be the data itself will need high 
-    computing power. To train and score our model we needed to run the analysis on a 192GB instance with 42 cores. Without this, we would've not been able to finish on time.
-    - **Deployment** — Nowadays UX and overall Frontend is giving for granted but to actually put something up with models running in the background is not easy. 
+    - **Big Data** — Besides being efficient there are natural constraints about how to handle the data and as efficient as you can be the data itself will need high 
+    computing power. To train and score our model we needed to run the analysis on a 192 GB instance with 42 cores. Without this, we would've not been able to finish on time.
+    - **Cloud Computing** — To cover the last two points on having efficient data processing due to the size of data that we have, this also led us to a journey with cloud 
+    computing experience and we picked AWS as our choice. Thanks to Amazon AWS for giving us the generous credits as a part of an education institution to support our learning.
+    - **Deployment** — Nowadays, UX and overall Frontend is taken for granted but to actually put something up with models running in the background is not easy. 
     Yes, there are good tools out there such as Heroku or Streamlit but we realized that to deploy massively and for the whole world is a whole other area of 
     expertise that we tried to make our best to get it up and running.
 
-    At the end of the day, the role of a Data Scientist can be very specific but it needs to be aware of all the surrounding areas to deploy the best product possible.
+    At the end of the day, the role of a Data Scientist can be very specific but he needs to be aware of all the surrounding areas to deploy the best product possible.
 
     You can model anything locally and write a report for it but if it does not have the ability to scale and reach the public massively, it is a big miss. 
     From my perspective, if it is not reaching the most audience, why bother?
@@ -614,11 +626,13 @@ def home_page():
     with r2c2:
         st.markdown('---')
         st.subheader('David Hernandez')
-        st.write('Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, \
-                  when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap \
-                  into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum \
-                  passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum. Lorem Ipsum is simply dummy text of \
-                  the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s,')
+        st.write('David Hernandez, born and raised in Mexico City and now living in Ann Arbor Michigan. Senior Engineer at Toyota for Advanced Driver Assistance Features \
+                 (ADAS) and Autonomous Features. He has been working on exciting products and cutting edge technology for over 10 years in the auto industry. He is earning \
+                 his Master\'s degree in Applied Data Science from University of Michigan in 2021. Driven by his curiosity he is always looking to develop new technology \
+                 that can save lives and make the roads a better place. The intersection of Machine Learning and Engineering is what is giving him the tools to develop \
+                 the next generation technology .He is passionate about traveling and learning about new cultures and always open to having a good conversation about what \
+                 the future looks like over a cup of coffee. Music is part of his daily life and he thinks that without it this world would be a very gray place. Feel free \
+                 to connect and reach out on [LinkedIn](https://www.linkedin.com/in/david-hernandez-5a782850/) [GitHub](https://github.com/Dave-Hdz) [Instagram](https://www.instagram.com/el.capitan.mx/)')
     with r2c3:
         st.markdown('---')
         st.image(os.path.join(cwd, 'images', 'David.png'), width=300)
@@ -633,7 +647,8 @@ def home_page():
                   in Piano Performance degree and built her music career in Singapore. As much as being passionate about classical music, she also cannot hold her \
                   curiosity on how data can be utilized to solve many interesting problems. Her creativity from musical arts combined with her strong analytical mind \
                   from data science knowledge lead to a well rounded, integrative thinking when it comes to problem solving. \n Starting from January 2022, Sheila is \
-                  going to join Procter & Gamble in its US headquarter as an Analytics & Insight Manager.')
+                  going to join Procter & Gamble in its US headquarter as an Analytics & Insight Manager. [LinkedIn](https://www.linkedin.com/in/sheilapietono/) \
+                  [GitHub](https://github.com/sheilavp) [Instagram](https://www.instagram.com/sheilavictoriapietono/)')
     with r3c3:
         st.markdown('---')
         st.image(os.path.join(cwd, 'images', 'Sheila.jpg'), width=300)
