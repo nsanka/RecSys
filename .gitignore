@@ -131,3 +131,4 @@ dmypy.json
 # Ignore project config file
 config.py
 .streamlit
+images/spr_demo.mov
