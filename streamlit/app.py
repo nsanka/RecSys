@@ -583,7 +583,11 @@ def home_page():
                     data=feedback_csv,
                     file_name='user_feedback.csv',
                 )
+    with r1c3:
+        st.image(os.path.join(cwd, 'images', 'Naga.jpg'), width=300)
 
+    r2c1, r2c2, r2c3, r2c4 = st.columns([1, 3, 1, 1])
+    with r2c2:
         st.markdown('---')
         st.subheader('David Hernandez')
         st.write('Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, \
@@ -591,7 +595,12 @@ def home_page():
                   into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum \
                   passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum. Lorem Ipsum is simply dummy text of \
                   the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s,')
+    with r2c3:
+        st.markdown('---')
+        st.image(os.path.join(cwd, 'images', 'David.png'), width=300)
 
+    r3c1, r3c2, r3c3, r3c4 = st.columns([1, 3, 1, 1])
+    with r3c2:
         st.markdown('---')
         st.subheader('Sheila Pietono')
         st.write('Originally from Indonesia, Sheila spent most of her life as a classical pianist and a lecturer. She is completing her Master in Applied Data Science \
@@ -601,10 +610,10 @@ def home_page():
                   curiosity on how data can be utilized to solve many interesting problems. Her creativity from musical arts combined with her strong analytical mind \
                   from data science knowledge lead to a well rounded, integrative thinking when it comes to problem solving. \n Starting from January 2022, Sheila is \
                   going to join Procter & Gamble in its US headquarter as an Analytics & Insight Manager.')
-    with r1c3:
-        st.image(os.path.join(cwd, 'images', 'Naga.jpg'), width=300)
-        st.image(os.path.join(cwd, 'images', 'David.png'), width=300)
+    with r3c3:
+        st.markdown('---')
         st.image(os.path.join(cwd, 'images', 'Sheila.jpg'), width=300)
+
     st.markdown("<br>", unsafe_allow_html=True)
 
 def spr_footer():
