@@ -378,6 +378,10 @@ def load_spr_ml_model():
     st.session_state.ml_model = SPR_ML_Model()
     
 def rec_page():
+    if 'spr' not in st.session_state:
+        st.error('Please select an option in User Input page')
+        return
+    
     if st.session_state.rec_type == 'playlist':
         st.subheader('Recommendations based on Playlist:')
     elif st.session_state.rec_type == 'last_month':
