@@ -269,8 +269,9 @@ class SpotifyRecommendations():
 
     def init_sp(self, response_url):
         code = self.sp_oauth.parse_response_code(response_url)
-        #print(sp_oauth.get_access_token(code))
-        access_token = self.sp_oauth.get_access_token(code, as_dict=False)
+        #print(self.sp_oauth.get_access_token(code))
+        token_info = self.sp_oauth.get_access_token(code)
+        access_token = token_info['access_token']
         self.sp = spotipy.Spotify(access_token)
 
     def get_html_for_login(self):
