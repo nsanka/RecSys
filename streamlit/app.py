@@ -586,13 +586,25 @@ def home_page():
 
         st.markdown('---')
         st.subheader('David Hernandez')
+        st.write('Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s, \
+                  when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap \
+                  into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum \
+                  passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum. Lorem Ipsum is simply dummy text of \
+                  the printing and typesetting industry. Lorem Ipsum has been the industry\'s standard dummy text ever since the 1500s,')
 
         st.markdown('---')
         st.subheader('Sheila Pietono')
+        st.write('Originally from Indonesia, Sheila spent most of her life as a classical pianist and a lecturer. She is completing her Master in Applied Data Science \
+                  from the University of Michigan Ann Arbor this year in 2021. This is her third graduate degree from the same university where she previously studied \
+                  Master of Music in Piano Performance and Master of Music in Chamber Music. Previously, she attended the National University of Singapore for a Bachelor \
+                  in Piano Performance degree and built her music career in Singapore. As much as being passionate about classical music, she also cannot hold her \
+                  curiosity on how data can be utilized to solve many interesting problems. Her creativity from musical arts combined with her strong analytical mind \
+                  from data science knowledge lead to a well rounded, integrative thinking when it comes to problem solving. \n Starting from January 2022, Sheila is \
+                  going to join Procter & Gamble in its US headquarter as an Analytics & Insight Manager.')
     with r1c3:
         st.image(os.path.join(cwd, 'images', 'Naga.jpg'), width=300)
-        #st.markdown('---')
-        #st.markdown('---')
+        st.image(os.path.join(cwd, 'images', 'David.png'), width=300)
+        st.image(os.path.join(cwd, 'images', 'Sheila.jpg'), width=300)
     st.markdown("<br>", unsafe_allow_html=True)
 
 def spr_footer():
