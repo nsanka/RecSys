@@ -13,6 +13,7 @@ date: Dec 18, 2021
 * [Data](#data)
 * [Code](#code)
 * [Summary](#summary)
+* [Blogs](#blogs)
 * [Contributions](#contributions)
 * [Contributing](#contributing)
 * [License](#license)
@@ -81,6 +82,15 @@ The final product is a streamlit app which allows users to do the following:
 * see the genres they listen to the most
 * obtain recommended songs to listen to based on users favorites collected in a time frame of last month, 6 months or all time
 * obtain recommended songs to listen to based on any playlist
+
+<!-- BLOGS -->
+## **Blogs:**
+[Part 1: Create Development Environment](https://nsanka.medium.com/music-recommender-system-part-1-86936d673c31?sk=4278ddfebc850599db2fca4a5f2a2104)
+[Part 2: Get the music dataset and perform Exploratory Data Analysis](https://nsanka.medium.com/music-recommender-system-part-2-ff4c3f54cba3?sk=2ad792ce8d7cf1433a8a50cebf2915e3)
+[Part 3: Build and train machine learning models](https://medium.com/@david.de.hernandez/modeling-data-for-a-spotify-recommender-system-3056997a0fc5?sk=7ce613a3d5cbd4a69e73804983d49f91)
+[Part 4: Evaluate the effect of dataset size on machine learning models](https://medium.com/@david.de.hernandez/scaling-data-on-an-aws-instance-for-an-spotify-recommender-system-fa71476e0d7c?sk=470e010f9d03865462400e65e07ab8ad)
+[PART 5: Pushing the Project to Cloud Computing (AWS Instance)](https://medium.com/@sheila_vp/part-4-pushing-the-project-to-cloud-computing-aws-instance-ce3b28ce8b6e)
+[Final Part: Deploy ML Based Recommender System into Production](https://medium.com/@nsanka/music-recommender-system-part-5-4278bf89411c)
 
 <!-- CONTRIBUTIONS -->
 ## **Contributions:**<br>
