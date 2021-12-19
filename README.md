@@ -13,7 +13,7 @@ date: Dec 18, 2021
 * [Data](#data)
 * [Code](#code)
 * [Summary](#summary)
-* [Contribustions](#contributions)
+* [Contributions](#contributions)
 * [Contributing](#contributing)
 * [License](#license)
 
@@ -23,65 +23,64 @@ The purpose of this project was to build a recommendation system to allow users 
 Users can explore connections to music by providing playlist they already enjoy or favorites they already love.
 <br>
 
-## **Data:**<br>
-	. We used the dataset provided by Spotify to enable research in music recommendations and can be accessed here:<br>
-	. https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge/dataset_files<br>
-	. This dataset includes public playlists created by US Spotify users between January 2010 and November 2017.<br>
-	. It has 1 million Spotify playlists, over 2 million unique tracks, nearly 300,000 artists and 734,000 albums.<br>
-	. We obtained audio features for all tracks through Spotify's API. Features include danceability, tempo, liveness, speechiness, etc.<br>
-<br>
+## **Data:**
+* We used the dataset provided by Spotify to enable research in music recommendations and can be accessed [here](https://www.aicrowd.com/challenges/spotify-million-playlist-dataset-challenge/dataset_files)
+* This dataset includes public playlists created by US Spotify users between January 2010 and November 2017.
+* It has 1 million Spotify playlists, over 2 million unique tracks, nearly 300,000 artists and 734,000 albums.
+* We obtained audio features for all tracks through Spotify's API. Features include danceability, tempo, liveness, speechiness, etc.
+
 
 ## **Features and Target Variables:**<br>
 <br>
 We used primarily an unsupervised learning clustering approach for this project, we predict the cluster for a given user, then use only that cluster to find the similar playlists and thereby use the playlists for song recommendations:<br>
 
-### **Data cleaning and pre-processing:**<br>
-<br>
-		. read playlists/track info from json files<br>
-		. EDA <br>
-		. extract audio features for each track<br>
-		. calculate average features for the playlist<br>
-		. normalize the features<br>
-		. project data into 2D space using TSNE<br>
-		. clustering using density and centroid models<br>
-		. identify optimum k using Silhouette/Davies-Bouldin/Calinski-Harabasz index<br>
+### **Data cleaning and pre-processing:**
+* read playlists/track info from json files
+* EDA
+* extract audio features for each track
+* calculate average features for the playlist
+* normalize the features
+* project data into 2D space using TSNE
+* clustering using density and centroid models
+* identify optimum k using Silhouette/Davies-Bouldin/Calinski-Harabasz index
 
 <!-- CODE -->
 ## **Code:**<br>
-<br>
-**. code/Get_MPD_Data.ipynb**<br>
-		. This notebook is used to create the main .json file containing the playlists to train the model and to generate the recommendations. <br>
-		  The loop_slices() function will go through as many slices as desired to extract the necessary information from the playlists, <br>
-		  it is recommended to use 20 slices to run locally and scale it as needed with a bigger instances such as AWS.<br>
-**. code/Playlist_Recommendation.ipynb**<br>
-		. This notebook will go through the entire analysis and development for the model and the recommendations. It describes what methods are used and how those were selected.<br>
-		. Seven different models were selected from different families and a 2D projection with TSNE was done. At 20,000 playlists, KMeans with k=17 is the best performer.<br>
-		. This notebook will generate the model and the playlist dataset to be used. All the models and datasets are saved locally.<br>
-**. code/read_spotify_million_playlists.py**<br>
-		. This is the primary code that we used to read all the million playlists information<br>
-		. This code exports sqlite database tables that are eventually used in the streamlit app<br>
-	<br>
-**. streamlit/app.py**<br>
-		. This is the code used to build the streamlit web application<br>
-		. This calls the class defined in spotify_client.py to get recommendations<br>
-    <br>
-**. streamlit/spotipy_client.py**<br>
-		. This code was primarily used to generate the song recommendations based on user input<br>
-		. This code also has a class to connect to Spotify API using user access token<br>
-		. It takes machine learning models generated	above and user input from web app to recommend top n songs<br>
-		. It also has functions to create visualizations<br>
-**. streamlit/style.css**<br>
-		. This is used to define web app CSS styles<br>
+### **. code/Get_MPD_Data.ipynb**<br>
+* This notebook is used to create the main .json file containing the playlists to train the model and to generate the recommendations. <br>
+* The loop_slices() function will go through as many slices as desired to extract the necessary information from the playlists, <br>
+* It is recommended to use 20 slices to run locally and scale it as needed with a bigger instances such as AWS.<br>
+
+### **. code/Playlist_Recommendation.ipynb**<br>
+* This notebook will go through the entire analysis and development for the model and the recommendations. It describes what methods are used and how those were selected.<br>
+* Seven different models were selected from different families and a 2D projection with TSNE was done. At 20,000 playlists, KMeans with k=17 is the best performer.<br>
+* This notebook will generate the model and the playlist dataset to be used. All the models and datasets are saved locally.<br>
+
+### **. code/read_spotify_million_playlists.py**<br>
+* This is the primary code that we used to read all the million playlists information<br>
+* This code exports sqlite database tables that are eventually used in the streamlit app<br>
+
+### **. streamlit/app.py**<br>
+* This is the code used to build the streamlit web application<br>
+* This calls the class defined in spotify_client.py to get recommendations<br>
+
+### **. streamlit/spotipy_client.py**<br>
+* This code was primarily used to generate the song recommendations based on user input<br>
+* This code also has a class to connect to Spotify API using user access token<br>
+* It takes machine learning models generated	above and user input from web app to recommend top n songs<br>
+* It also has functions to create visualizations<br>
+
+### **. streamlit/style.css**<br>
+* This is used to define web app CSS styles<br>
 
 <!-- SUMMARY -->
-## **Summary:**<br>
-<br>
-The final product is a streamlit app which allows users to do the following:<br>
-		. explore the similar or dissimilar songs related to the users music<br>
-		. explore the top playlists that are similar to their preference<br>
-		. see the genres they listen to the most<br>
-		. obtain recommended songs to listen to based on users favorites collected in a time frame of last month, 6 months or all time<br>
-		. obtain recommended songs to listen to based on any playlist<br>
+## **Summary:**
+The final product is a streamlit app which allows users to do the following:
+* explore the similar or dissimilar songs related to the users music
+* explore the top playlists that are similar to their preference
+* see the genres they listen to the most
+* obtain recommended songs to listen to based on users favorites collected in a time frame of last month, 6 months or all time
+* obtain recommended songs to listen to based on any playlist
 
 <!-- CONTRIBUTIONS -->
 ## **Contributions:**<br>
@@ -96,11 +95,12 @@ Sheila Pietono - Exploratory data analysis and Scale the data to an AWS instance
 <br>
 This data set has much potential to keep working on it and I would like to list all the potential ramifications and future work that can be done with it.<br>
 We performed quite a few QC checks of the data to make sure recommendations made sense by comparing average audio features between the playlists.<br>
+
 There is still future work to be done on this project as this app is currently still in beta mode. These are the proposed future improvements:<br>
-		. properly link to Spotify API so that users are not requied to copy/paste the access token<br>
-		. implement collaborative based recommendation in addition to content based recommendations<br>
-		. use deep learning for recommender system<br>
-		. use the user feedback to improve the recommendations<br>
+* properly link to Spotify API so that users are not requied to copy/paste the access token
+* implement collaborative based recommendation in addition to content based recommendations
+* use deep learning for recommender system
+* use the user feedback to improve the recommendations
 
 <!-- CONTRIBUTING -->
 ## Contributing
