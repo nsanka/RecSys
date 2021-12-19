@@ -46,31 +46,31 @@ We used primarily an unsupervised learning clustering approach for this project,
 
 <!-- CODE -->
 ## **Code:**<br>
-### **. code/Get_MPD_Data.ipynb**<br>
+### **code/Get_MPD_Data.ipynb**<br>
 * This notebook is used to create the main .json file containing the playlists to train the model and to generate the recommendations. <br>
 * The loop_slices() function will go through as many slices as desired to extract the necessary information from the playlists, <br>
 * It is recommended to use 20 slices to run locally and scale it as needed with a bigger instances such as AWS.<br>
 
-### **. code/Playlist_Recommendation.ipynb**<br>
+### **code/Playlist_Recommendation.ipynb**<br>
 * This notebook will go through the entire analysis and development for the model and the recommendations. It describes what methods are used and how those were selected.<br>
 * Seven different models were selected from different families and a 2D projection with TSNE was done. At 20,000 playlists, KMeans with k=17 is the best performer.<br>
 * This notebook will generate the model and the playlist dataset to be used. All the models and datasets are saved locally.<br>
 
-### **. code/read_spotify_million_playlists.py**<br>
+### **code/read_spotify_million_playlists.py**<br>
 * This is the primary code that we used to read all the million playlists information<br>
 * This code exports sqlite database tables that are eventually used in the streamlit app<br>
 
-### **. streamlit/app.py**<br>
+### **streamlit/app.py**<br>
 * This is the code used to build the streamlit web application<br>
 * This calls the class defined in spotify_client.py to get recommendations<br>
 
-### **. streamlit/spotipy_client.py**<br>
+### **streamlit/spotipy_client.py**<br>
 * This code was primarily used to generate the song recommendations based on user input<br>
 * This code also has a class to connect to Spotify API using user access token<br>
 * It takes machine learning models generated	above and user input from web app to recommend top n songs<br>
 * It also has functions to create visualizations<br>
 
-### **. streamlit/style.css**<br>
+### **streamlit/style.css**<br>
 * This is used to define web app CSS styles<br>
 
 <!-- SUMMARY -->
