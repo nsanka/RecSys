@@ -62,7 +62,7 @@ We used primarily an unsupervised learning clustering approach for this project,
 * This code exports sqlite database tables that are eventually used in the streamlit app<br>
 
 ### **streamlit/app.py**<br>
-* This is the code used to build the streamlit web application [link](https://share.streamlit.io/nsanka/recsys/main/streamlit/app.py)<br>
+* This is the code used to build the [streamlit web application](https://share.streamlit.io/nsanka/recsys/main/streamlit/app.py)<br>
 * This calls the class defined in spotify_client.py to get recommendations<br>
 
 ### **streamlit/spotipy_client.py**<br>
